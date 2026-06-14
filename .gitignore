@@ -1,0 +1,12 @@
+# Exclude user raw data and database
+data/
+Keep/
+Tweets/
+
+# Python environment and cache
+venv/
+__pycache__/
+*.pyc
+
+# Env config
+.env

@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Personal KB — Mockup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    /* ── Design Tokens ─────────────────────────────────────────── */
+    :root {
+      --bg:               #111113;
+      --bg-input:         #1a1a1c;
+      --bg-answer:        #182018;
+      --bg-result-active: #1e1e20;
+      --bg-card:          #191919;
+      --bg-sidebar:       #0f0f11;
+      --border:           #2a2a2e;
+      --border-answer:    #243624;
+      --text-answer:      #9fd99f;
+      --text-title:       #d8d8d8;
+      --text-snippet:     #7a7a7a;
+      --text-meta:        #505050;
+      --text-dim:         #3a3a3a;
+      --text-match:       #9fd99f;
+      --accent-online:    #22c55e;
+      --accent-offline:   #f87171;
+      --prompt-char:      #444;
+      --caret:            #9fd99f;
+      --font-mono:        'Fira Code', 'Courier New', monospace;
+      --font-sans:        'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --radius-sm:        4px;
+      --radius:           6px;
+      --radius-lg:        8px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text-title);
+      font-family: var(--font-mono);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a2e; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3a3a3e; }
+
+    /* ── Layout ────────────────────────────────────────────────── */
+    .app-container { display: flex; height: 100vh; width: 100vw; overflow: hidden; }
+
+    /* ── Top Bar ───────────────────────────────────────────────── */
+    .main-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 44px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      user-select: none;
+    }
+
+    .top-bar-left { display: flex; align-items: center; gap: 10px; }
+
+    .sidebar-toggle-btn {
+      background: transparent;
+      border: none;
+      color: #444;
+      font-size: 17px;
+      cursor: pointer;
+      line-height: 1;
+      padding: 4px;
+      transition: color 0.15s;
+      border-radius: var(--radius-sm);
+    }
+    .sidebar-toggle-btn:hover { color: #777; background: #1e1e20; }
+
+    .logo {
+      font-size: 10px;
+      color: #3a3a3a;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+    }
+
+    .top-bar-right { display: flex; align-items: center; gap: 10px; }
+
+    .reingest-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: #484848;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: all 0.15s;
+      user-select: none;
+    }
+    .reingest-btn:hover {
+      border-color: #3a3a3a;
+      color: #888;
+    }
+
+    .status-indicator { display: flex; align-items: center; gap: 6px; }
+
+    .status-dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--accent-online);
+      box-shadow: 0 0 5px var(--accent-online);
+    }
+
+    .status-text {
+      font-size: 10px;
+      color: var(--accent-online);
+      font-family: var(--font-mono);
+    }
+
+    .memory-count {
+      font-size: 10px;
+      color: #383838;
+      font-family: var(--font-mono);
+    }
+
+    /* separator between status items */
+    .top-bar-sep {
+      width: 1px;
+      height: 14px;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    /* ── Results / Main Area ───────────────────────────────────── */
+    .results-area {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 0 20px;
+    }
+
+    /* ── Home Screen ───────────────────────────────────────────── */
+    .home-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex: 1;
+      /* Push content slightly above true centre for better visual balance */
+      padding-bottom: 60px;
+      gap: 0;
+    }
+
+    /* Ambient glow behind greeting */
+    .greeting-glow {
+      position: absolute;
+      width: 340px;
+      height: 120px;
+      border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(34,197,94,0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .greeting-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: #2d4a2d;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      /* Flicker-in animation */
+      animation: fadein 0.6s ease both;
+    }
+
+    .greeting-title {
+      font-family: var(--font-sans);
+      font-size: 22px;           /* was 28px — less dominant */
+      font-weight: 400;
+      color: #a8d8a8;            /* slightly desaturated */
+      letter-spacing: -0.01em;
+      margin-bottom: 6px;
+      animation: fadein 0.6s 0.05s ease both;
+    }
+
+    .greeting-subline {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #3a3a3a;
+      margin-bottom: 28px;
+      animation: fadein 0.6s 0.1s ease both;
+    }
+
+    /* ── Suggested Chips ───────────────────────────────────────── */
+    .suggested-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      justify-content: center;
+      max-width: 520px;
+      animation: fadein 0.7s 0.18s ease both;
+    }
+
+    .prompt-chip {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #4a4a4a;
+      background: transparent;
+      border: 1px solid #222226;
+      border-radius: 20px;
+      padding: 6px 14px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      white-space: nowrap;
+    }
+    .prompt-chip:hover {
+      color: #9fd99f;
+      border-color: rgba(159, 217, 159, 0.22);
+      background: rgba(159, 217, 159, 0.04);
+      transform: translateY(-1px);
+    }
+
+    /* ── Mini stat strip under chips ──────────────────────────── */
+    .home-stats {
+      display: flex;
+      gap: 18px;
+      margin-top: 24px;
+      align-items: center;
+      animation: fadein 0.7s 0.25s ease both;
+    }
+    .home-stat {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #272727;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .home-stat-value {
+      color: #343434;
+      font-weight: 600;
+    }
+    .home-stat-sep {
+      width: 1px;
+      height: 10px;
+      background: #1e1e20;
+    }
+
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Error Console — resting state ────────────────────────── */
+    /*
+      KEY CHANGE: when error count is 0, the console is essentially
+      invisible — just a 1px bottom line acting as a visual separator.
+      It only becomes prominent if errors exist.
+    */
+    .error-console {
+      flex-shrink: 0;
+      border-top: 1px solid transparent;
+      transition: border-color 0.2s;
+    }
+    /* Zero-error state: show as a barely-visible row */
+    .error-console.no-errors .console-toggle-btn {
+      background: transparent;
+      color: #2a2a2e;           /* nearly invisible */
+      font-size: 10px;
+      padding: 5px 20px;
+      border-bottom: 1px solid transparent;
+    }
+    .error-console.no-errors .console-toggle-btn:hover {
+      color: #484848;
+    }
+    /* With errors: show normal prominence */
+    .error-console.has-errors {
+      background: #1a1212;
+      border-top: 1px solid #3a1a1a;
+    }
+    .error-console.has-errors .console-toggle-btn {
+      background: #1e1414;
+      color: #c08080;
+      font-size: 11px;
+      padding: 7px 14px;
+    }
+    .console-toggle-btn {
+      width: 100%;
+      border: none;
+      font-family: var(--font-mono);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.15s;
+    }
+    .console-toggle-btn:hover { color: var(--text-title); }
+    .console-badge {
+      font-size: 9px;
+      font-family: var(--font-mono);
+    }
+    /* badge colour: grey when 0, red when >0 */
+    .error-console.no-errors .console-badge { color: #262626; }
+    .error-console.has-errors .console-badge {
+      color: var(--accent-offline);
+      background: rgba(248,113,113,0.1);
+      padding: 1px 6px;
+      border-radius: 10px;
+    }
+
+    /* ── Input Panel ───────────────────────────────────────────── */
+    .input-panel {
+      flex-shrink: 0;
+      padding: 12px 20px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0 16px;
+      height: 40px;
+      margin-bottom: 9px;
+      transition: border-color 0.2s;
+    }
+    .search-container:focus-within { border-color: #3a3a3a; }
+
+    .prompt-symbol {
+      color: var(--prompt-char);
+      font-size: 14px;
+      margin-right: 12px;
+      user-select: none;
+    }
+
+    #search-input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      outline: none;
+      color: #eee;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      caret-color: var(--caret);
+    }
+    #search-input::placeholder { color: #2e2e2e; }
+
+    .shortcut-hint { color: #2e2e2e; font-size: 10px; user-select: none; }
+
+    /* ── Actions Row ─────────────────────────────────────────── */
+    .input-actions-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 10px;
+    }
+
+    .mode-toggle { display: flex; gap: 5px; }
+
+    .mode-btn {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 4px 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: transparent;
+      color: #3c3c3c;
+      cursor: pointer;
+      letter-spacing: 0.04em;
+      transition: all 0.15s;
+    }
+    .mode-btn:hover { border-color: #404040; color: #888; }
+    .mode-btn.active {
+      border-color: #2a4a2a;
+      background: #141e14;
+      color: var(--text-answer);
+    }
+
+    /* depth slider group */
+    .slider-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #363636;
+      font-size: 10px;
+      user-select: none;
+    }
+    .slider-label-text { white-space: nowrap; }
+    .slider-value { color: #4a5a4a; font-weight: 600; }
+    .k-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 3px;
+      border-radius: 2px;
+      background: #222226;
+      outline: none;
+      cursor: pointer;
+    }
+    .k-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #3a5a3a;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .k-slider::-webkit-slider-thumb:hover { transform: scale(1.3); }
+
+    /* ── Footer ─────────────────────────────────────────────────── */
+    /*
+      KEY CHANGE: better contrast on kbd, breathing room, right-aligned
+      export hidden by default so it doesn't take up dead space.
+    */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 30px;
+      padding: 0 20px;
+      border-top: 1px solid #1a1a1e;
+      user-select: none;
+      flex-shrink: 0;
+    }
+
+    .footer-hints { display: flex; align-items: center; gap: 4px; }
+
+    .footer-hint {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #303030;
+      padding: 0 6px;
+    }
+    /* separator dot between hints */
+    .footer-hint + .footer-hint::before {
+      content: '·';
+      color: #222;
+      margin-right: 6px;
+    }
+
+    .footer-hint kbd {
+      font-family: var(--font-mono);
+      font-size: 9px;
+      color: #484848;           /* was #555 — actually readable now */
+      background: #1c1c1e;
+      border: 1px solid #2c2c30;
+      border-bottom: 2px solid #242428; /* subtle depth */
+      border-radius: 3px;
+      padding: 1px 5px;
+      line-height: 1.5;
+    }
+
+    .footer-hint span { color: #2a2a2a; }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <div class="main-panel">
+
+    <!-- Top Bar -->
+    <header class="top-bar">
+      <div class="top-bar-left">
+        <button class="sidebar-toggle-btn" title="Toggle History">≡</button>
+        <div class="logo">PERSONAL KB</div>
+      </div>
+      <div class="top-bar-right">
+        <button class="reingest-btn">
+          <span>⟳</span> Sync Notes
+        </button>
+        <div class="top-bar-sep"></div>
+        <div class="status-indicator">
+          <span class="status-dot"></span>
+          <span class="status-text">1,858 memories</span>
+        </div>
+        <div class="top-bar-sep"></div>
+        <span class="memory-count">llama3.2:3b</span>
+      </div>
+    </header>
+
+    <!-- Results Area -->
+    <main class="results-area">
+
+      <!-- Home Screen -->
+      <div class="home-screen">
+        <div class="greeting-glow"></div>
+
+        <div class="greeting-eyebrow">Wednesday · afternoon</div>
+        <h1 class="greeting-title">Good afternoon, Soham.</h1>
+        <p class="greeting-subline">Hope the day is going well.</p>
+
+        <!-- Suggested Chips — slightly more vivid + better spacing -->
+        <div class="suggested-chips">
+          <button class="prompt-chip">what have I written about ambition?</button>
+          <button class="prompt-chip">notes on Mumbai comedy scene</button>
+          <button class="prompt-chip">find my startup notes</button>
+          <button class="prompt-chip">recent bookmarks</button>
+          <button class="prompt-chip">what was I thinking about last week?</button>
+        </div>
+
+        <!-- Tiny stat strip — fills dead space without being loud -->
+        <div class="home-stats">
+          <div class="home-stat">
+            <span class="home-stat-value">1,858</span> memories indexed
+          </div>
+          <div class="home-stat-sep"></div>
+          <div class="home-stat">
+            last synced <span class="home-stat-value">today</span>
+          </div>
+          <div class="home-stat-sep"></div>
+          <div class="home-stat">
+            model <span class="home-stat-value">llama3.2:3b</span>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!--
+      Error Console — ZERO-ERROR STATE
+      Nearly invisible; no red, no ⚙ icon. Just a ghost row.
+      Add class "has-errors" and remove "no-errors" to see error state.
+    -->
+    <div class="error-console no-errors">
+      <button class="console-toggle-btn">
+        <span>server log</span>
+        <span class="console-badge">(0)</span>
+      </button>
+    </div>
+
+    <!-- Input Panel -->
+    <div class="input-panel">
+      <div class="search-container">
+        <span class="prompt-symbol">›</span>
+        <input type="text" id="search-input" placeholder="start typing to search..." autocomplete="off" autofocus />
+        <span class="shortcut-hint">Ctrl+K</span>
+      </div>
+
+      <div class="input-actions-row">
+        <!-- Mode toggle -->
+        <div class="mode-toggle">
+          <button class="mode-btn active">▸ answer with AI</button>
+          <button class="mode-btn">" verbatim</button>
+          <button class="mode-btn">↗ open source</button>
+        </div>
+
+        <!-- Depth slider — tightened up -->
+        <div class="slider-group">
+          <span class="slider-label-text">depth</span>
+          <input type="range" class="k-slider" min="5" max="100" value="15">
+          <span class="slider-value">15</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="footer-hints">
+        <div class="footer-hint"><kbd>↑↓</kbd> <span>navigate</span></div>
+        <div class="footer-hint"><kbd>space</kbd> <span>open note</span></div>
+        <div class="footer-hint"><kbd>esc</kbd> <span>clear</span></div>
+        <div class="footer-hint"><kbd>≡</kbd> <span>history</span></div>
+      </div>
+      <!-- Export only shown during active conversation -->
+      <!-- <button class="footer-action-btn">Export Thread</button> -->
+    </footer>
+
+  </div>
+</div>
+
+<script>
+  // Live slider value
+  const slider = document.querySelector('.k-slider');
+  const sliderVal = document.querySelector('.slider-value');
+  slider.addEventListener('input', () => { sliderVal.textContent = slider.value; });
+
+  // Toggle error console demo (click to see has-errors state)
+  const console_ = document.querySelector('.error-console');
+  document.querySelector('.console-toggle-btn').addEventListener('click', () => {
+    if (console_.classList.contains('no-errors')) {
+      console_.classList.replace('no-errors', 'has-errors');
+    } else {
+      console_.classList.replace('has-errors', 'no-errors');
+    }
+  });
+</script>
+</body>
+</html>
