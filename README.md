@@ -12,29 +12,29 @@ Featuring a terminal spotlight-inspired browser interface, the system supports h
 
 ```mermaid
 flowchart TD
-    subgraph Data Sources
+    subgraph Data_Sources["Data Sources"]
         Keep[Google Keep JSON]
         Tweets[Twitter Archive]
         MD[Markdown/PDF/Notion]
     end
 
-    subgraph Ingestion Pipeline [Ingestion Pipeline]
+    subgraph Ingestion_Pipeline["Ingestion Pipeline"]
         Chunker[Text Chunker]
         Embedder[Ollama Embeddings nomic-embed-text]
         SQLiteSync[SQLite FTS5 Storage]
         ChromaSync[ChromaDB Vector Store]
     end
 
-    subgraph Backend FastAPI Server [FastAPI Backend Server]
+    subgraph Backend_FastAPI_Server["FastAPI Backend Server"]
         SearchAPI[Hybrid Retriever RRF]
         LLM[Ollama Llama 3.2:3b]
         DbAPI[SQLite History & Session Manager]
     end
 
-    subgraph Frontend Client [Spotlight UI]
-        ChatMode[▸ Answer with AI]
-        VerbatimMode[" Verbatim Source]
-        SourceMode[↗ Open Source FTS]
+    subgraph Frontend_Client["Spotlight UI"]
+        ChatMode["▸ Answer with AI"]
+        VerbatimMode["Verbatim Source"]
+        SourceMode["↗ Open Source FTS"]
     end
 
     %% Data Pipeline Connections
@@ -46,12 +46,15 @@ flowchart TD
     Chunker --> SQLiteSync
 
     %% Search and Retrieval flow
-    Frontend Client -- User Queries --> SearchAPI
-    SearchAPI -- Lexical Results --> SQLiteSync
-    SearchAPI -- Vector Matches --> ChromaSync
-    SearchAPI -- Combined Context --> LLM
-    LLM -- Streamed Markdown --> Frontend Client
-    DbAPI -- Save History --> SQLiteSync
+    ChatMode -- "User Queries" --> SearchAPI
+    VerbatimMode -- "User Queries" --> SearchAPI
+    SourceMode -- "User Queries" --> SearchAPI
+
+    SearchAPI -- "Lexical Results" --> SQLiteSync
+    SearchAPI -- "Vector Matches" --> ChromaSync
+    SearchAPI -- "Combined Context" --> LLM
+    LLM -- "Streamed Response" --> ChatMode
+    DbAPI -- "Save History" --> SQLiteSync
 ```
 
 ### 1. Ingestion Pipeline
