@@ -10,3 +10,6 @@ __pycache__/
 
 # Env config
 .env
+
+# Project planning documents
+project-1-*.md
