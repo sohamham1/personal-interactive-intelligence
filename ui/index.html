@@ -4,175 +4,179 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Knowledge Base Q&A</title>
-  <!-- Google Fonts Fira Code -->
+  <!-- Google Fonts JetBrains Mono & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/ui/style.css">
 </head>
 <body>
 
-  <div class="app-container">
-    <!-- Collapsible Sidebar -->
-    <aside class="sidebar" id="sidebar">
-      <div class="sidebar-header">
-        <div class="sidebar-logo">HISTORY</div>
+  <div class="app-container kb-root">
+    
+    <!-- Topbar -->
+    <header class="kb-topbar">
+      <span class="logo">PKB<span class="logo-dot">.</span></span>
+      <div class="topbar-divider"></div>
+      <nav class="topbar-nav">
+        <a class="active" href="#" onclick="clearSearchAndResults(true)">search</a>
+        <a href="#" onclick="setMode('source'); document.querySelector('[data-group=notes]').click();">notes</a>
+        <a href="#" id="sidebar-toggle">history</a>
+        <a href="#" onclick="setMode('source'); document.querySelector('[data-group=all]').click();">collections</a>
+      </nav>
+      <div class="topbar-spacer"></div>
+      <div class="mem-pill">
+        <div class="mem-dot status-dot"></div>
+        <span class="status-text">loading memories...</span>
       </div>
-      <div class="sidebar-scroll">
-        <div class="sidebar-section" id="section-today" style="display: none;">
-          <div class="section-label">today</div>
-          <div class="section-list" id="list-today"></div>
-        </div>
-        <div class="sidebar-section" id="section-yesterday" style="display: none;">
-          <div class="section-label">yesterday</div>
-          <div class="section-list" id="list-yesterday"></div>
-        </div>
-        <div class="sidebar-section" id="section-earlier" style="display: none;">
-          <div class="section-label">earlier</div>
-          <div class="section-list" id="list-earlier"></div>
-        </div>
+      <button class="reingest-btn topbar-btn" id="reingest-btn">
+        <span class="sync-icon">⟳</span> <span class="sync-text">sync notes</span>
+      </button>
+      <div class="model-chip">
+        <div class="mem-dot status-dot"></div>
+        <span id="model-name">llama3.2:3b</span>
       </div>
-      <button class="new-chat-btn" id="new-chat-btn">+ new chat</button>
-    </aside>
+      <button class="topbar-btn" onclick="alert('Personalization settings can be customized using environment variables (USER_NAME, USER_BIO, USER_TOPICS) on the backend.')">⚙</button>
 
-    <!-- Main Panel -->
-    <div class="main-panel">
-      <!-- Top Bar -->
-      <header class="top-bar">
-        <div class="top-bar-left">
-          <button class="sidebar-toggle-btn" id="sidebar-toggle" title="Toggle History">≡</button>
-          <div class="logo">PERSONAL KB</div>
+      <!-- Collapsible Sidebar (Styled as floating popover under history tab) -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div class="sidebar-logo">REPLY HISTORY</div>
         </div>
-        <div class="top-bar-right">
-          <button class="reingest-btn" id="reingest-btn" title="Sync Notes & Tweets">
-            <span class="sync-icon">⟳</span> <span class="sync-text">Sync Notes</span>
-          </button>
-          <div class="status-indicator">
-            <span class="status-dot"></span>
-            <span class="status-text">loading status...</span>
+        <div class="sidebar-scroll">
+          <div class="sidebar-section" id="section-today" style="display: none;">
+            <div class="section-label">today</div>
+            <div class="section-list" id="list-today"></div>
+          </div>
+          <div class="sidebar-section" id="section-yesterday" style="display: none;">
+            <div class="section-label">yesterday</div>
+            <div class="section-list" id="list-yesterday"></div>
+          </div>
+          <div class="sidebar-section" id="section-earlier" style="display: none;">
+            <div class="section-label">earlier</div>
+            <div class="section-list" id="list-earlier"></div>
           </div>
         </div>
-      </header>
+        <button class="new-chat-btn" id="new-chat-btn">+ new chat</button>
+      </aside>
+    </header>
 
-      <!-- Results Area -->
-      <main class="results-area" id="results-area">
-        <!-- Empty State / Home Screen -->
-        <div class="empty-state" id="empty-state">
-          <div class="home-screen" id="home-screen">
-            <h1 class="greeting-title" id="greeting-title">Good morning.</h1>
-            <p class="greeting-subline" id="greeting-subline">what's on your mind?</p>
-            <div class="suggested-chips" id="suggested-chips">
-              <!-- Dynamically populated chips -->
+    <div class="dot-grid"></div>
+
+    <!-- Main Panel / Body -->
+    <main class="kb-body results-area" id="results-area">
+      <!-- Empty State / Home Screen -->
+      <div class="empty-state" id="empty-state">
+        <div class="hero-content">
+          <p class="hero-eyebrow" id="hero-date">loading date...</p>
+          <h1 class="hero-greeting" id="greeting-title">Welcome back.</h1>
+          <p class="hero-sub" id="greeting-subline">Loading your memories...</p>
+          <div class="suggested-chips" id="suggested-chips">
+            <!-- Dynamically populated chips -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Search Card Grid (preview shown while typing) -->
+      <div class="live-search-container" id="live-search-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px;">
+        <div class="card-grid" id="results-list"></div>
+      </div>
+
+      <!-- Active Conversation View (AI & Verbatim mode turns) -->
+      <div class="conversation-container" id="conversation-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
+        <!-- Multi-turn conversational items injected here -->
+      </div>
+
+      <!-- Open Source Mode View (FTS cards & Pagination) -->
+      <div class="open-source-container" id="open-source-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
+        <div class="open-source-filters">
+          <button class="filter-btn active" data-group="all">all</button>
+          <button class="filter-btn" data-group="notes">notes</button>
+          <button class="filter-btn" data-group="tweets">tweets</button>
+        </div>
+        <div class="card-grid" id="open-source-list"></div>
+        <div class="pagination-container" id="pagination-container" style="display: none;">
+          <span class="pagination-info" id="pagination-info">showing 0 of 0 results</span>
+          <button class="load-more-btn" id="load-more-btn">load more</button>
+        </div>
+      </div>
+    </main>
+
+    <!-- Search Dock -->
+    <div class="search-dock">
+      <div class="search-wrap">
+        <div class="search-bar">
+          <span class="search-prompt">&gt;</span>
+          <input class="search-input" id="search-input" placeholder="ask anything from your notes..." type="text" autocomplete="off" autofocus />
+          <span class="search-enter shortcut-hint">Ctrl+K</span>
+        </div>
+        <div class="search-footer">
+          <div class="mode-tabs">
+            <div class="mode-tab active" id="modeAI" onclick="setMode('ai')">answer with AI</div>
+            <div class="mode-tab" id="modeVerbatim" onclick="setMode('verbatim')">verbatim</div>
+            <div class="mode-tab" id="modeSource" onclick="setMode('source')">open source</div>
+          </div>
+          <div class="footer-right">
+            <div class="depth-row">
+              <span>depth</span>
+              <input class="depth-slider" id="k-slider" type="range" min="5" max="100" value="15" step="1" />
+              <span class="depth-val" id="k-value">15</span>
+            </div>
+            <div class="kbd-hints">
+              <div class="kbd-hint"><kbd class="kbd">Tab</kbd> navigate</div>
+              <div class="kbd-hint"><kbd class="kbd">Esc</kbd> clear</div>
+              <div class="kbd-hint"><kbd class="kbd">#</kbd> history</div>
             </div>
           </div>
         </div>
-
-        <!-- Live Search Card Grid (preview shown while typing) -->
-        <div class="live-search-container" id="live-search-container" style="display: none;">
-          <div class="card-grid" id="results-list"></div>
-        </div>
-
-        <!-- Active Conversation View (AI & Verbatim mode turns) -->
-        <div class="conversation-container" id="conversation-container" style="display: none;">
-          <!-- Multi-turn conversational items injected here -->
-        </div>
-
-        <!-- Open Source Mode View (FTS cards & Pagination) -->
-        <div class="open-source-container" id="open-source-container" style="display: none;">
-          <div class="open-source-filters">
-            <button class="filter-btn active" data-group="all">all</button>
-            <button class="filter-btn" data-group="notes">notes</button>
-            <button class="filter-btn" data-group="tweets">tweets</button>
-          </div>
-          <div class="card-grid" id="open-source-list"></div>
-          <div class="pagination-container" id="pagination-container" style="display: none;">
-            <span class="pagination-info" id="pagination-info">showing 0 of 0 results</span>
-            <button class="load-more-btn" id="load-more-btn">load more</button>
-          </div>
-        </div>
-      </main>
-
-      <!-- Collapsible Error Console -->
-      <div class="error-console" id="error-console">
-        <button class="console-toggle-btn" id="console-toggle-btn">
-          <span>⚙ Server Error Console</span> <span id="console-error-count">(0)</span>
-        </button>
-        <div class="console-content" id="console-content" style="display: none;">
-          <div class="console-actions">
-            <button class="console-clear-btn" id="console-clear-btn">Clear logs</button>
-          </div>
-          <div class="console-logs-list" id="console-logs-list">
-            <div class="console-no-errors">No errors captured.</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Search Input Container (Always at bottom) -->
-      <div class="input-panel">
-        <div class="search-container">
-          <span class="prompt-symbol">›</span>
-          <input type="text" id="search-input" placeholder="start typing to search..." autocomplete="off" autofocus />
-          <span class="shortcut-hint">Ctrl+K</span>
-        </div>
-
-        <!-- Mode Toggle & Range Slider Row -->
-        <div class="input-actions-row">
-          <div class="mode-toggle">
-            <button class="mode-btn active" id="modeAI" onclick="setMode('ai')">
-              ▸ answer with AI
-            </button>
-            <button class="mode-btn" id="modeVerbatim" onclick="setMode('verbatim')">
-              " verbatim
-            </button>
-            <button class="mode-btn" id="modeSource" onclick="setMode('source')">
-              ↗ open source
-            </button>
-          </div>
-          
-          <div class="slider-container">
-            <label for="k-slider" class="slider-label">depth (k): <span id="k-value">15</span></label>
-            <input type="range" id="k-slider" min="5" max="100" value="15" class="k-slider" />
-          </div>
-        </div>
-      </div>
-
-      <!-- Footer -->
-      <footer class="footer">
-        <div class="footer-left">
-          <span class="footer-hint"><kbd>↑↓</kbd> navigate</span>
-          <span class="footer-hint"><kbd>space</kbd> open note</span>
-          <span class="footer-hint"><kbd>esc</kbd> clear</span>
-          <span class="footer-hint"><kbd>≡</kbd> history</span>
-        </div>
-        <div class="footer-right" id="conversation-actions" style="display: none;">
-          <button class="footer-action-btn" id="export-thread-btn">Export Thread</button>
-        </div>
-      </footer>
-    </div>
-  </div>
-
-  <!-- Modal Overlay -->
-  <div class="modal-overlay" id="modal" style="display:none;" onclick="if(event.target===this)closeModal()">
-    <div class="modal">
-      <div class="modal-header">
-        <span class="modal-title" id="modalTitle"></span>
-        <button class="modal-close" onclick="closeModal()">✕</button>
-      </div>
-      <!-- Modal Navigation breadcrumb bar -->
-      <div class="modal-breadcrumbs" id="modalBreadcrumbs" style="display: none;">
-        <button class="modal-nav-btn" id="modalPrev" title="Previous Passage">◀ Prev</button>
-        <span class="modal-breadcrumb-label" id="modalBreadcrumbLabel">passage 1 of 1</span>
-        <button class="modal-nav-btn" id="modalNext" title="Next Passage">Next ▶</button>
-      </div>
-      <div class="modal-body" id="modalBody"></div>
-      <div class="modal-footer">
-        <button class="modal-action primary" id="modalAskAI">Ask AI about this note</button>
-        <button class="modal-action" id="modalCopy">Copy text</button>
-        <button class="modal-action" id="modalOpenOriginal">Open original</button>
       </div>
     </div>
+
+    <!-- Hidden Console Panel to prevent JS errors -->
+    <div class="error-console" id="error-console" style="display: none;">
+      <button class="console-toggle-btn" id="console-toggle-btn">Console</button>
+      <div class="console-content" id="console-content">
+        <button class="console-clear-btn" id="console-clear-btn">Clear</button>
+        <div class="console-logs-list" id="console-logs-list"></div>
+      </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal" style="display:none;" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title" id="modalTitle"></span>
+          <button class="modal-close" onclick="closeModal()">✕</button>
+        </div>
+        <div class="modal-breadcrumbs" id="modalBreadcrumbs" style="display: none;">
+          <button class="modal-nav-btn" id="modalPrev" title="Previous Passage">◀ Prev</button>
+          <span class="modal-breadcrumb-label" id="modalBreadcrumbLabel">passage 1 of 1</span>
+          <button class="modal-nav-btn" id="modalNext" title="Next Passage">Next ▶</button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-footer">
+          <button class="modal-action primary" id="modalAskAI">Ask AI about this note</button>
+          <button class="modal-action" id="modalCopy">Copy text</button>
+          <button class="modal-action" id="modalOpenOriginal">Open original</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Conversation Actions (Hidden export panel) -->
+    <div id="conversation-actions" style="display: none;">
+      <button id="export-thread-btn" style="display: none;">Export</button>
+    </div>
+
   </div>
 
   <script src="/ui/app.js"></script>
+  <script>
+    // Set dynamic current date on the hero banner
+    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+    const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+    const now = new Date();
+    const timeOfDay = now.getHours() < 12 ? 'morning' : (now.getHours() < 17 ? 'afternoon' : (now.getHours() < 21 ? 'evening' : 'night'));
+    document.getElementById('hero-date').textContent = `${days[now.getDay()]} ${timeOfDay} · ${months[now.getMonth()]} ${now.getDate()}`;
+  </script>
 </body>
 </html>

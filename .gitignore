@@ -13,3 +13,7 @@ __pycache__/
 
 # Project planning documents
 project-1-*.md
+
+# Mockups and local design files
+personal_kb_light.html
+pkb_design_changes.md
