@@ -19,6 +19,64 @@ let openSourceGroup = 'all';
 // K depth state
 let currentK = 15;
 
+// ── AI Thinking Loader ────────────────────────────────────────────────────────
+const THINKING_WORDS = [
+  // Claude-style introspective gerunds
+  { word: "Thinking",       sub: "pulling threads together" },
+  { word: "Searching",      sub: "combing through your notes" },
+  { word: "Reflecting",     sub: "drawing from your past" },
+  { word: "Connecting",     sub: "linking ideas across sources" },
+  { word: "Synthesising",   sub: "weaving a coherent picture" },
+  { word: "Exploring",      sub: "navigating your memories" },
+  { word: "Reasoning",      sub: "working through the logic" },
+  { word: "Gathering",      sub: "collecting the relevant bits" },
+  { word: "Remembering",    sub: "surfacing what you noted" },
+  { word: "Contemplating",  sub: "sitting with your words" },
+  { word: "Considering",    sub: "weighing what matters most" },
+  { word: "Composing",      sub: "finding the right words" },
+  { word: "Analysing",      sub: "reading between the lines" },
+  { word: "Marinating",     sub: "letting the ideas steep" },
+  { word: "Tracing",        sub: "following the trail you left" },
+  { word: "Processing",     sub: "making sense of it all" },
+  { word: "Distilling",     sub: "extracting what counts" },
+  { word: "Noticing",       sub: "spotting patterns in your notes" },
+];
+
+let _thinkingInterval = null;
+let _thinkingWordIdx = 0;
+
+function startThinkingLoader(containerEl) {
+  // Pick a random starting word (not the same as last time)
+  _thinkingWordIdx = Math.floor(Math.random() * THINKING_WORDS.length);
+
+  function renderWord() {
+    const { word, sub } = THINKING_WORDS[_thinkingWordIdx];
+    containerEl.innerHTML = `<span class="thinking-loader">` +
+      `<span class="thinking-dot"></span>` +
+      `<span class="thinking-word">${word}</span><span class="thinking-ellipsis">…</span> ` +
+      `<span class="thinking-sub">${sub}</span>` +
+      `</span>`;
+  }
+
+  renderWord();
+  _thinkingInterval = setInterval(() => {
+    // Fade out → change → fade in
+    const loaderEl = containerEl.querySelector('.thinking-loader');
+    if (loaderEl) loaderEl.classList.add('thinking-fade');
+    setTimeout(() => {
+      _thinkingWordIdx = (_thinkingWordIdx + 1) % THINKING_WORDS.length;
+      renderWord();
+    }, 300);
+  }, 8000);
+}
+
+function stopThinkingLoader() {
+  if (_thinkingInterval) {
+    clearInterval(_thinkingInterval);
+    _thinkingInterval = null;
+  }
+}
+
 // Modal passages state
 let modalChunksList = [];
 let modalCurrentIndex = -1;
@@ -113,8 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setInterval(pollErrorConsole, 10000);
 
   // Shortcut hints for Mac/Windows
-  const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
-  document.querySelector(".shortcut-hint").textContent = isMac ? "⌘K" : "Ctrl+K";
+  document.querySelector(".shortcut-hint").textContent = "Shift+Enter";
   
   setMode('ai');
 
@@ -159,7 +216,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (currentMode === 'source') {
           openSourceOffset = 0;
           performOpenSourceSearch(query, false);
-        } else {
+        } else if (currentMode !== 'ai') {
           performLiveSearch(query);
         }
       }
@@ -274,12 +331,23 @@ function setMode(mode) {
     }
   } else {
     openSourceContainer.style.display = 'none';
-    if (query) {
+    if (query && mode !== 'ai') {
       emptyState.style.display = 'none';
       liveSearchContainer.style.display = 'block';
       conversationContainer.style.display = 'none';
       conversationActions.style.display = 'none';
       performLiveSearch(query);
+    } else if (query && mode === 'ai') {
+      liveSearchContainer.style.display = 'none';
+      if (activeConversationId) {
+        emptyState.style.display = 'none';
+        conversationContainer.style.display = 'flex';
+        conversationActions.style.display = 'block';
+      } else {
+        emptyState.style.display = 'flex';
+        conversationContainer.style.display = 'none';
+        conversationActions.style.display = 'none';
+      }
     } else {
       liveSearchContainer.style.display = 'none';
       if (activeConversationId) {
@@ -541,19 +609,23 @@ async function fetchStatusQuiet() {
 }
 
 function updateStatusIndicator(data) {
+  const modelNameSpan = document.getElementById("model-name");
   if (data.ollama_running && data.model_available) {
-    statusDot.className = "status-dot online";
+    statusDot.className = "mem-dot status-dot";
     statusText.className = "status-text online";
     const docCountFormatted = data.documents_indexed.toLocaleString();
-    statusText.textContent = `${docCountFormatted} memories · ${data.model}`;
+    statusText.textContent = `${docCountFormatted} memories`;
+    if (modelNameSpan) modelNameSpan.textContent = data.model;
   } else if (!data.ollama_running) {
-    statusDot.className = "status-dot offline";
+    statusDot.className = "mem-dot status-dot offline";
     statusText.className = "status-text offline";
     statusText.textContent = "ollama offline";
+    if (modelNameSpan) modelNameSpan.textContent = "offline";
   } else if (!data.model_available) {
-    statusDot.className = "status-dot offline";
+    statusDot.className = "mem-dot status-dot offline";
     statusText.className = "status-text offline";
     statusText.textContent = "model missing";
+    if (modelNameSpan) modelNameSpan.textContent = "missing";
   }
 }
 
@@ -694,8 +766,7 @@ function exportThreadMarkdown() {
 
 // Focus input shortcut
 document.addEventListener("keydown", (e) => {
-  const isMac = navigator.userAgent.toUpperCase().indexOf('MAC') >= 0;
-  const isFocusKey = isMac ? (e.metaKey && e.key.toLowerCase() === 'k') : (e.ctrlKey && e.key.toLowerCase() === 'k');
+  const isFocusKey = e.shiftKey && e.key === 'Enter';
   
   if (isFocusKey) {
     e.preventDefault();
@@ -719,7 +790,7 @@ searchInput.addEventListener("input", (e) => {
     if (currentMode === 'source') {
       openSourceOffset = 0;
       performOpenSourceSearch(query, false);
-    } else {
+    } else if (currentMode !== 'ai') {
       performLiveSearch(query);
     }
   }, 200);
@@ -806,6 +877,128 @@ async function performOpenSourceSearch(query, append = false) {
   }
 }
 
+// ── Tweet card helpers ────────────────────────────────────────────────────────
+
+// Format "Tweets: 2023-12-04 to 2023-12-10" or date_range "2023-12-04 to 2023-12-10"
+// → human label like "week of 4 Dec"
+function formatTweetCardTitle(item) {
+  const dateRange = item.date_range || "";
+  const titleRaw = item.title || "";
+  // Try date_range first, then parse from title string
+  const rangeStr = dateRange || (titleRaw.includes(" to ") ? titleRaw.replace(/^Tweets:\s*/, "") : "");
+  const m = rangeStr.match(/(\d{4}-\d{2}-\d{2})/);
+  if (m) {
+    const d = new Date(m[1] + "T00:00:00");
+    return `week of ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+  }
+  return titleRaw || "Tweets";
+}
+
+// Format a short label for the date badge: "Dec '23" or "16/09/24"
+function formatDateBadge(item) {
+  if (item.source === "twitter") {
+    const dateRange = item.date_range || "";
+    const titleRaw = item.title || "";
+    const rangeStr = dateRange || (titleRaw.includes(" to ") ? titleRaw.replace(/^Tweets:\s*/, "") : "");
+    const m = rangeStr.match(/(\d{4}-\d{2}-\d{2})/);
+    if (m) {
+      const d = new Date(m[1] + "T00:00:00");
+      return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "2-digit" });
+    }
+    return "";
+  }
+  
+  const rawDateStr = item.created_at || item.saved_at || (item.metadata && (item.metadata.created_at || item.metadata.saved_at));
+  if (rawDateStr) {
+    const d = new Date(rawDateStr);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}/${mm}/${yy}`;
+    }
+  }
+  
+  return item.timestamp || "";
+}
+
+// Clean tweet blob snippet: strip "- [timestamp] " prefixes and join cleanly
+function cleanTweetSnippet(snippet) {
+  // Remove em-wrapped timestamps and raw "- [YYYY-MM-DD HH:MM]" prefixes
+  return (snippet || "")
+    .replace(/- \[\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?\] /g, "")
+    .replace(/<em>\[?\d{4}-\d{2}-\d{2}[^<]*<\/em>/g, "")
+    .replace(/^-\s+/gm, "")
+    .trim();
+}
+
+// Parse a twitter weekly blob into structured tweet objects
+// Uses global regex to handle chunked blobs that may not start at tweet boundary
+function parseTweetBlob(text) {
+  const tweets = [];
+  const re = /- \[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?\] ([^\n]+)/g;
+  let m;
+  while ((m = re.exec(text || "")) !== null) {
+    tweets.push({ date: m[1], time: m[2], content: m[3].trim() });
+  }
+  return tweets;
+}
+
+// Render twitter item as a clean day-grouped timeline inside modal body
+function renderTwitterModal(item, bodyEl) {
+  const text = item.text || item.snippet || "";
+  const tweets = parseTweetBlob(text);
+
+  if (tweets.length === 0) {
+    bodyEl.style.whiteSpace = "pre-wrap";
+    bodyEl.textContent = text;
+    return;
+  }
+
+  bodyEl.innerHTML = "";
+  bodyEl.style.whiteSpace = "";
+  bodyEl.classList.add("tweet-timeline");
+
+  // Group by date
+  const byDate = {};
+  for (const t of tweets) {
+    if (!byDate[t.date]) byDate[t.date] = [];
+    byDate[t.date].push(t);
+  }
+
+  for (const [date, dayTweets] of Object.entries(byDate)) {
+    const dayEl = document.createElement("div");
+    dayEl.className = "tweet-day-header";
+    const d = new Date(date + "T00:00:00");
+    dayEl.textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    bodyEl.appendChild(dayEl);
+
+    for (const tweet of dayTweets) {
+      const tweetEl = document.createElement("div");
+      const isReply = /^@\w+/.test(tweet.content);
+      tweetEl.className = isReply ? "tweet-item tweet-reply" : "tweet-item";
+
+      const timeEl = document.createElement("span");
+      timeEl.className = "tweet-time";
+      timeEl.textContent = tweet.time;
+
+      const textEl = document.createElement("div");
+      textEl.className = "tweet-text";
+
+      // Escape, then highlight @mentions and links
+      const escaped = tweet.content
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      textEl.innerHTML = escaped
+        .replace(/(@\w+)/g, '<span class="tweet-mention">$1</span>')
+        .replace(/(https?:\/\/\S+)/g, '<span class="tweet-url">link ↗</span>');
+
+      tweetEl.appendChild(timeEl);
+      tweetEl.appendChild(textEl);
+      bodyEl.appendChild(tweetEl);
+    }
+  }
+}
+
 // Render results into a target container (card grid)
 function renderResultsGrid(results, query, targetEl, append = false) {
   if (!append) {
@@ -823,36 +1016,69 @@ function renderResultsGrid(results, query, targetEl, append = false) {
     cardEl.dataset.index = actualIdx;
     if (item.url) cardEl.dataset.url = item.url;
     
+    const isTwitter = item.source === "twitter";
+    
+    // ── Card Top Row ─────────────────────────────────
     const topEl = document.createElement("div");
     topEl.className = "card-top";
     
     const titleEl = document.createElement("span");
     titleEl.className = "card-title";
-    titleEl.textContent = item.title;
+    titleEl.textContent = isTwitter ? formatTweetCardTitle(item) : item.title;
+    
+    // Right side: date badge + source tag
+    const rightEl = document.createElement("div");
+    rightEl.className = "card-top-right";
+    
+    const badge = formatDateBadge(item);
+    if (badge) {
+      const dateEl = document.createElement("span");
+      dateEl.className = "card-date-badge";
+      dateEl.textContent = badge;
+      rightEl.appendChild(dateEl);
+    }
     
     const tagEl = document.createElement("span");
     tagEl.className = `src-tag src-${item.source}`;
-    tagEl.textContent = item.source;
+    tagEl.textContent = item.source === "twitter" ? "𝕏" : item.source;
+    rightEl.appendChild(tagEl);
     
     topEl.appendChild(titleEl);
-    topEl.appendChild(tagEl);
+    topEl.appendChild(rightEl);
     
+    // ── Card Body ─────────────────────────────────
     const bodyEl = document.createElement("div");
     bodyEl.className = "card-body";
-    bodyEl.innerHTML = item.snippet;
     
-    const footerEl = document.createElement("div");
-    footerEl.className = "card-footer";
-    
-    const timeEl = document.createElement("span");
-    timeEl.className = "card-time";
-    timeEl.textContent = item.timestamp || "";
-    
-    footerEl.appendChild(timeEl);
+    if (isTwitter) {
+      const cleanText = cleanTweetSnippet(item.snippet);
+      const lines = cleanText.split('\n');
+      bodyEl.innerHTML = lines.map(line => {
+        const rawText = line.replace(/<[^>]+>/g, '').trim();
+        if (rawText.startsWith('@')) {
+          return `<span class="tweet-reply-badge">Reply</span> <span class="tweet-reply-text">${line}</span>`;
+        } else if (rawText) {
+          return `<span class="tweet-original-text">${line}</span>`;
+        }
+        return '';
+      }).filter(l => l).join('<br/>');
+    } else {
+      bodyEl.innerHTML = item.snippet;
+    }
     
     cardEl.appendChild(topEl);
     cardEl.appendChild(bodyEl);
-    if (item.timestamp) cardEl.appendChild(footerEl);
+    
+    // ── Footer (only for non-twitter non-timestamp items) ──
+    if (!isTwitter && item.timestamp) {
+      const footerEl = document.createElement("div");
+      footerEl.className = "card-footer";
+      const timeEl = document.createElement("span");
+      timeEl.className = "card-time";
+      timeEl.textContent = item.timestamp;
+      footerEl.appendChild(timeEl);
+      cardEl.appendChild(footerEl);
+    }
     
     cardEl.addEventListener("mouseenter", () => {
       setActiveItem(actualIdx, targetEl);
@@ -887,87 +1113,85 @@ function setActiveItem(index, targetEl = resultsList) {
 // Modal handling with pagination
 async function openModal(item) {
   currentModalItem = item;
-  document.getElementById("modalTitle").textContent = item.title;
-  document.getElementById("modalBody").textContent = item.text || item.snippet;
+  
+  const isTwitter = item.source === "twitter";
+  
+  // Format title
+  const titleEl = document.getElementById("modalTitle");
+  if (isTwitter) {
+    titleEl.textContent = formatTweetCardTitle(item);
+  } else {
+    titleEl.textContent = item.title;
+  }
+  
+  const bodyEl = document.getElementById("modalBody");
+  bodyEl.scrollTop = 0;
+  
+  // Render body
+  if (isTwitter) {
+    bodyEl.style.whiteSpace = "";
+    renderTwitterModal(item, bodyEl);
+  } else {
+    bodyEl.classList.remove("tweet-timeline");
+    bodyEl.style.whiteSpace = "pre-wrap";
+    bodyEl.textContent = item.text || item.snippet;
+  }
   
   const modal = document.getElementById("modal");
   modal.style.display = "flex";
   
   const openOriginalBtn = document.getElementById("modalOpenOriginal");
-  if (item.url) {
+  if (isTwitter) {
+    openOriginalBtn.style.opacity = "0.3";
+    openOriginalBtn.style.cursor = "not-allowed";
+    openOriginalBtn.disabled = true;
+    openOriginalBtn.title = "No direct link for archived tweets";
+  } else if (item.url) {
     openOriginalBtn.style.opacity = "1";
     openOriginalBtn.style.cursor = "pointer";
     openOriginalBtn.disabled = false;
+    openOriginalBtn.title = "";
   } else {
     openOriginalBtn.style.opacity = "0.4";
     openOriginalBtn.style.cursor = "not-allowed";
     openOriginalBtn.disabled = true;
+    openOriginalBtn.title = "";
   }
 
-  // Fetch passages (chunks) for breadcrumb navigation
   modalBreadcrumbs.style.display = "none";
-  modalChunksList = [];
-  modalCurrentIndex = -1;
 
   const sourceId = item.source_id || (item.metadata && item.metadata.source_id);
-  if (sourceId) {
+  if (!isTwitter && sourceId) {
     try {
       const response = await fetch(`/notes/${encodeURIComponent(sourceId)}/chunks`);
       if (response.ok) {
-        modalChunksList = await response.json();
-        if (modalChunksList.length > 1) {
-          // Find matching index in list
-          const curId = item.id || item.chunk_id;
-          modalCurrentIndex = modalChunksList.findIndex(c => c.id === curId);
-          if (modalCurrentIndex === -1) {
-            modalCurrentIndex = 0;
+        const chunks = await response.json();
+        if (chunks.length > 0) {
+          chunks.sort((a, b) => a.index - b.index);
+          const fullText = chunks.map(c => c.text).join("\\n\\n");
+          if (currentModalItem && currentModalItem.id === item.id) {
+            currentModalItem.text = fullText;
+            bodyEl.textContent = fullText;
           }
-          modalBreadcrumbs.style.display = "flex";
-          updateModalBreadcrumbsUI();
         }
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to load full note:", err);
     }
   }
-}
-
-function updateModalBreadcrumbsUI() {
-  modalBreadcrumbLabel.textContent = `passage ${modalCurrentIndex + 1} of ${modalChunksList.length}`;
-  modalPrev.disabled = (modalCurrentIndex === 0);
-  modalNext.disabled = (modalCurrentIndex === modalChunksList.length - 1);
-  modalPrev.style.opacity = (modalCurrentIndex === 0) ? "0.3" : "1";
-  modalNext.style.opacity = (modalCurrentIndex === modalChunksList.length - 1) ? "0.3" : "1";
-}
-
-function navigateModalPassage(idx) {
-  modalCurrentIndex = idx;
-  const targetChunk = modalChunksList[modalCurrentIndex];
   
-  document.getElementById("modalBody").textContent = targetChunk.text;
-  
-  // If the target chunk has a unique URL, update Open Original button
-  const openOriginalBtn = document.getElementById("modalOpenOriginal");
-  if (targetChunk.url) {
-    openOriginalBtn.style.opacity = "1";
-    openOriginalBtn.style.cursor = "pointer";
-    openOriginalBtn.disabled = false;
-  } else {
-    openOriginalBtn.style.opacity = "0.4";
-    openOriginalBtn.style.cursor = "not-allowed";
-    openOriginalBtn.disabled = true;
+  // For twitter: fetch full merged text in background
+  if (isTwitter && item.id) {
+    fetch(`/notes/${encodeURIComponent(item.id)}/full`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!currentModalItem || currentModalItem.id !== item.id) return;
+        if (!data || !data.text) return;
+        currentModalItem.text = data.text;
+        renderTwitterModal({ ...item, text: data.text }, bodyEl);
+      })
+      .catch(() => {});
   }
-  
-  // Update internal item pointer
-  currentModalItem = {
-    title: targetChunk.title,
-    text: targetChunk.text,
-    snippet: targetChunk.text,
-    url: targetChunk.url,
-    source_id: modalChunksList[0].source_id
-  };
-  
-  updateModalBreadcrumbsUI();
 }
 
 function closeModal() {
@@ -1006,7 +1230,7 @@ document.addEventListener("keydown", (e) => {
       e.preventDefault();
       openModal(currentResults[activeIndex]);
     }
-  } else if (e.key === "Enter") {
+  } else if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
     if (document.activeElement === searchInput) {
       if (currentMode !== 'source') {
@@ -1249,7 +1473,8 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
       const oldFeedback = turnEl.querySelector(".feedback-container");
       if (oldFeedback) oldFeedback.remove();
       
-      ansContent.innerHTML = `<span style="color: #555">thinking</span><span class="cursor"></span>`;
+      ansContent.innerHTML = "";
+      startThinkingLoader(ansContent);
       ansSources.innerHTML = "";
       ansSources.style.display = "none";
     }
@@ -1279,7 +1504,7 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
     
     ansContent = document.createElement("div");
     ansContent.className = "answer-content";
-    ansContent.innerHTML = `<span style="color: #555">thinking</span><span class="cursor"></span>`;
+    startThinkingLoader(ansContent);
     
     ansSources = document.createElement("div");
     ansSources.className = "answer-sources";
@@ -1334,22 +1559,36 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
       loadSidebar();
     }
     
-    ansContent.innerHTML = "";
-    const textNode = document.createTextNode("");
-    ansContent.appendChild(textNode);
-    
-    const cursor = document.createElement("span");
-    cursor.className = "cursor";
-    ansContent.appendChild(cursor);
-    
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let fullText = "";
     let finalSources = [];
+    let isFirstChunk = true;
+    let textNode;
+    let cursor;
     
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
+      
+      if (isFirstChunk && !done) {
+        stopThinkingLoader();
+        ansContent.innerHTML = "";
+        textNode = document.createTextNode("");
+        ansContent.appendChild(textNode);
+        
+        cursor = document.createElement("span");
+        cursor.className = "cursor";
+        ansContent.appendChild(cursor);
+        isFirstChunk = false;
+      }
+      
+      if (done) {
+        if (isFirstChunk) {
+          stopThinkingLoader();
+          ansContent.innerHTML = "";
+        }
+        break;
+      }
       
       fullText += decoder.decode(value, { stream: true });
       
@@ -1366,7 +1605,7 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
         const sourcesJson = fullText.substring(sentinelIndex + 11);
         try {
           finalSources = JSON.parse(sourcesJson);
-          cursor.remove();
+          if (cursor) cursor.remove();
           
           ansSources.innerHTML = "";
           finalSources.forEach(src => {
@@ -1509,6 +1748,7 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
     pollErrorConsole();
     
   } catch (err) {
+    stopThinkingLoader();
     console.error(err);
     pollErrorConsole();
     

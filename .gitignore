@@ -2,6 +2,8 @@
 data/
 Keep/
 Tweets/
+*.db
+database.db
 
 # Python environment and cache
 venv/
@@ -17,3 +19,11 @@ project-1-*.md
 # Mockups and local design files
 personal_kb_light.html
 pkb_design_changes.md
+personal_kb_card_grid_mockup.html
+personal_kb_homepage_mockup.html
+
+# AI generated images
+ChatGPT Image*.png
+
+# Scratch space
+scratch/

@@ -339,11 +339,14 @@ def search_endpoint(q: str = "", limit: int = 8):
             
         formatted.append({
             "id": res["id"],
+            "source_id": metadata.get("source_id", ""),
             "source": source,
             "title": title,
             "snippet": make_snippet(res["text"], q),
             "text": res["text"],
             "timestamp": timestamp_str,
+            "created_at": metadata.get("created_at") or metadata.get("saved_at") or "",
+            "date_range": metadata.get("date_range", "") if source == "twitter" else "",
             "url": url
         })
         
@@ -413,13 +416,32 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
                     
             timestamp_str = get_relative_time(row["created_at"])
             
+            source_id = row["source_id"]
+            
+            # Derive date_range from source_id for twitter (format: twitter_YYYY-MM-DD)
+            date_range = ""
+            if source == "twitter" and source_id:
+                # source_id like "twitter_2023-12-04" → derive week range
+                parts = source_id.split("_")
+                if len(parts) >= 2:
+                    try:
+                        from datetime import timedelta
+                        start_dt = datetime.fromisoformat(parts[-1])
+                        end_dt = start_dt + timedelta(days=6)
+                        date_range = f"{start_dt.strftime('%Y-%m-%d')} to {end_dt.strftime('%Y-%m-%d')}"
+                    except Exception:
+                        pass
+            
             formatted.append({
                 "id": row["chunk_id"],
+                "source_id": source_id,
                 "source": source,
                 "title": title,
                 "snippet": make_snippet(row["body"], q),
                 "text": row["body"],
                 "timestamp": timestamp_str,
+                "created_at": row["created_at"] or "",
+                "date_range": date_range,
                 "url": url
             })
             
@@ -636,7 +658,7 @@ def clear_errors():
     ERROR_LOG = []
     return {"status": "success"}
 
-def truncate_chunk(text: str, max_words: int = 100) -> str:
+def truncate_chunk(text: str, max_words: int = 60) -> str:
     words = text.split()
     if len(words) <= max_words:
         return text
@@ -664,23 +686,13 @@ def build_prompt(query: str, chunks: list, total_matches: int, context: str = ""
     
     prompt = ""
     if context:
-        prompt += f"Previous context:\n{context}\n\n"
+        prompt += f"Context:\n{context}\n\n"
         
-    prompt += f"""You are a personal memory assistant. These are the user's own notes, tweets, and saved content — written by them or saved by them.
+    prompt += f"""Personal memory assistant. These are the user's own notes, tweets, bookmarks.
 
-{total_matches} pieces of content matched this query. Here are the most relevant ones:
+{formatted}Question: {query}
 
-{formatted}
-Current question: {query}
-
-Instructions:
-- Answer as if you know this person well, because you're drawing from their own words
-- If the query is broad (e.g. "what have I said about love"), identify themes across the sources
-- Mention specific examples from the notes where relevant
-- Be honest if coverage seems partial: "you have {total_matches} notes on this — here are the main themes"
-- Do not make up content not present in the sources
-- Keep the answer to 4-6 sentences
-- You are summarising the user's own notes. Be concise (4–8 sentences). Reference specific examples. Do not fabricate anything not in the sources."""
+Answer in 3-5 sentences. Draw from the sources above. Do not fabricate."""
     
     return prompt
 
@@ -708,10 +720,6 @@ async def query_endpoint(body: QueryRequest):
     ollama_status = await check_ollama()
     if not ollama_status["running"]:
         raise HTTPException(status_code=503, detail=ollama_status["error"])
-        
-    model_status = await check_model()
-    if not model_status["available"]:
-        raise HTTPException(status_code=503, detail=model_status["error"])
 
     conversation_id = body.conversation_id
     if not conversation_id:

@@ -17,39 +17,48 @@ def sanitize_fts_query(query: str) -> str:
     query_stripped = query.strip()
     if not query_stripped:
         return ""
-    if query_stripped.startswith('"') and query_stripped.endswith('"'):
-        inner = query_stripped[1:-1]
-        cleaned_inner = re.sub(r'[^a-zA-Z0-9\s]', ' ', inner)
-        cleaned_inner = ' '.join(cleaned_inner.split())
-        return f'"{cleaned_inner}"'
-    else:
-        cleaned = re.sub(r'[^a-zA-Z0-9\s]', ' ', query_stripped)
-        words = cleaned.split()
-        if not words:
-            return ""
-        terms = [f"{word}*" for word in words]
-        return " OR ".join(terms)
+    
+    phrases = re.findall(r'"([^"]+)"', query_stripped)
+    unquoted = re.sub(r'"[^"]+"', ' ', query_stripped)
+    
+    terms = []
+    for p in phrases:
+        cleaned = re.sub(r'[^a-zA-Z0-9\s]', ' ', p)
+        cleaned = ' '.join(cleaned.split())
+        if cleaned:
+            terms.append(f'"{cleaned}"')
+            
+    cleaned_unquoted = re.sub(r'[^a-zA-Z0-9\s]', ' ', unquoted)
+    words = cleaned_unquoted.split()
+    for w in words:
+        terms.append(f"{w}*")
+        
+    if not terms:
+        return ""
+    return " OR ".join(terms)
 
 def get_retrieval_params(query: str) -> dict:
     words = query.split()
+    
+    if '"' in query:
+        return {"k": 30, "mode": "hybrid", "dedupe": True, "max_unique": 15}
     
     # Exact phrase query (quoted or short phrase likely to be verbatim)
     # Detection: query is 3–8 words AND contains common lyric/quote patterns
     # OR user wraps in quotes: "she say do you love me"
     if query.startswith('"') and query.endswith('"'):
-        return {"k": 200, "mode": "exact", "dedupe": False}
+        return {"k": 30, "mode": "exact", "dedupe": False}
     
     # Broad/thematic query (1–2 words or clearly thematic)
     if len(words) <= 2:
-        return {"k": 50, "mode": "hybrid", "dedupe": True, "max_unique": 30}
+        return {"k": 15, "mode": "hybrid", "dedupe": True, "max_unique": 12}
     
     # Deep-dive query (specific entity — person, company, topic)
-    # Heuristic: 3–6 words, no question words
     if len(words) <= 6 and not any(w in query.lower() for w in ["what", "how", "why", "when", "did i"]):
-        return {"k": 100, "mode": "hybrid", "dedupe": True, "max_unique": 50}
+        return {"k": 20, "mode": "hybrid", "dedupe": True, "max_unique": 15}
     
     # Conversational / question query
-    return {"k": 30, "mode": "hybrid", "dedupe": True, "max_unique": 15}
+    return {"k": 15, "mode": "hybrid", "dedupe": True, "max_unique": 10}
 
 def retrieve(query_text: str, n_results: int = None, deduplicate: bool = None) -> list[dict]:
     if not query_text or not query_text.strip():

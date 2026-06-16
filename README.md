@@ -91,7 +91,7 @@ flowchart TD
 * **Vector Database**: ChromaDB (File-based local persistent client).
 * **Database & Indexing**: SQLite with `FTS5` virtual tables.
 * **Backend Framework**: Python 3.10+ & FastAPI.
-* **Frontend Web App**: Vanilla HTML5, CSS3 (featuring sleek glassmorphic aesthetics, dark themes, and console panels), and asynchronous ES6 Javascript.
+* **Frontend Web App**: Vanilla HTML5, CSS3 (featuring sleek glassmorphic aesthetics, a light theme, and console panels), and asynchronous ES6 Javascript.
 
 ---
 
@@ -145,13 +145,19 @@ python -m ingest.ingest_twitter
 
 ### 6. Start the Server
 Run the startup script:
-* **Windows**: Double-click `start_app.bat` or run:
+* **Windows**: Double-click `start.bat` or run:
   ```powershell
-  .\start_app.bat
+  .\start.bat
   ```
+  *Note: The `start.bat` script will automatically open your default web browser to the application.*
+
 * **macOS/Linux / Manual**:
   ```bash
   python -m uvicorn api.server:app --port 8000
   ```
+  Open your browser and navigate to **`http://localhost:8000`**.
 
-Open your browser and navigate to **`http://localhost:8000`** to start interacting with your knowledge base.
+### 7. Stop the Server
+To safely stop the server and cleanly release the port:
+* **Windows**: Double-click `stop.bat` or run `.\stop.bat`.
+* **macOS/Linux / Manual**: Terminate the `uvicorn` process (e.g., via `Ctrl+C` in your terminal).

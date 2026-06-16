@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Personal Knowledge Base Q&A</title>
+  <link rel="icon" type="image/png" href="/ui/favicon.png">
   <!-- Google Fonts JetBrains Mono & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,58 +13,35 @@
 </head>
 <body>
 
-  <div class="app-container kb-root">
-    
-    <!-- Topbar -->
+  <div class="kb-root">
+    <div class="dot-grid"></div>
+
     <header class="kb-topbar">
-      <span class="logo">PKB<span class="logo-dot">.</span></span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <img src="/ui/favicon.png" alt="Logo" style="width: 20px; height: 20px; object-fit: contain; border-radius: 4px;">
+        <span class="logo">PKB<span class="logo-dot">.</span></span>
+      </div>
       <div class="topbar-divider"></div>
       <nav class="topbar-nav">
-        <a class="active" href="#" onclick="clearSearchAndResults(true)">search</a>
-        <a href="#" onclick="setMode('source'); document.querySelector('[data-group=notes]').click();">notes</a>
-        <a href="#" id="sidebar-toggle">history</a>
-        <a href="#" onclick="setMode('source'); document.querySelector('[data-group=all]').click();">collections</a>
+        <a class="nav-tab active" href="#" onclick="clearSearchAndResults(true); updateNav(this);">search</a>
+        <a class="nav-tab" href="#" onclick="setMode('source'); document.querySelector('[data-group=notes]').click(); updateNav(this);">notes</a>
+        <a class="nav-tab" href="#" id="sidebar-toggle">history</a>
+        <a class="nav-tab" href="#" onclick="setMode('source'); document.querySelector('[data-group=all]').click(); updateNav(this);">collections</a>
       </nav>
       <div class="topbar-spacer"></div>
       <div class="mem-pill">
         <div class="mem-dot status-dot"></div>
         <span class="status-text">loading memories...</span>
       </div>
-      <button class="reingest-btn topbar-btn" id="reingest-btn">
-        <span class="sync-icon">⟳</span> <span class="sync-text">sync notes</span>
-      </button>
+      <button class="topbar-btn" id="reingest-btn"><span class="sync-icon">⟳</span> <span class="sync-text">sync notes</span></button>
       <div class="model-chip">
-        <div class="mem-dot status-dot"></div>
+        <div class="dot status-dot"></div>
         <span id="model-name">llama3.2:3b</span>
+        <i class="ti ti-chevron-down" style="font-size:11px; margin-left:4px" aria-hidden="true"></i>
       </div>
       <button class="topbar-btn" onclick="alert('Personalization settings can be customized using environment variables (USER_NAME, USER_BIO, USER_TOPICS) on the backend.')">⚙</button>
-
-      <!-- Collapsible Sidebar (Styled as floating popover under history tab) -->
-      <aside class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-          <div class="sidebar-logo">REPLY HISTORY</div>
-        </div>
-        <div class="sidebar-scroll">
-          <div class="sidebar-section" id="section-today" style="display: none;">
-            <div class="section-label">today</div>
-            <div class="section-list" id="list-today"></div>
-          </div>
-          <div class="sidebar-section" id="section-yesterday" style="display: none;">
-            <div class="section-label">yesterday</div>
-            <div class="section-list" id="list-yesterday"></div>
-          </div>
-          <div class="sidebar-section" id="section-earlier" style="display: none;">
-            <div class="section-label">earlier</div>
-            <div class="section-list" id="list-earlier"></div>
-          </div>
-        </div>
-        <button class="new-chat-btn" id="new-chat-btn">+ new chat</button>
-      </aside>
     </header>
 
-    <div class="dot-grid"></div>
-
-    <!-- Main Panel / Body -->
     <main class="kb-body results-area" id="results-area">
       <!-- Empty State / Home Screen -->
       <div class="empty-state" id="empty-state">
@@ -71,7 +49,7 @@
           <p class="hero-eyebrow" id="hero-date">loading date...</p>
           <h1 class="hero-greeting" id="greeting-title">Welcome back.</h1>
           <p class="hero-sub" id="greeting-subline">Loading your memories...</p>
-          <div class="suggested-chips" id="suggested-chips">
+          <div class="chips" id="suggested-chips">
             <!-- Dynamically populated chips -->
           </div>
         </div>
@@ -88,38 +66,37 @@
       </div>
 
       <!-- Open Source Mode View (FTS cards & Pagination) -->
-      <div class="open-source-container" id="open-source-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
-        <div class="open-source-filters">
-          <button class="filter-btn active" data-group="all">all</button>
-          <button class="filter-btn" data-group="notes">notes</button>
-          <button class="filter-btn" data-group="tweets">tweets</button>
+      <div class="open-source-container" id="open-source-container" style="display: none; width: 920px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
+        <div class="open-source-filters" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;">
+          <button class="filter-btn active" data-group="all" style="font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;">all</button>
+          <button class="filter-btn" data-group="notes" style="font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;">notes</button>
+          <button class="filter-btn" data-group="tweets" style="font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;">tweets</button>
         </div>
         <div class="card-grid" id="open-source-list"></div>
-        <div class="pagination-container" id="pagination-container" style="display: none;">
-          <span class="pagination-info" id="pagination-info">showing 0 of 0 results</span>
-          <button class="load-more-btn" id="load-more-btn">load more</button>
+        <div class="pagination-container" id="pagination-container" style="display: none; justify-content: center; margin-top: 20px; flex-direction: column; align-items: center; gap: 10px;">
+          <span class="pagination-info" id="pagination-info" style="font-family: var(--font-mono); font-size: 10px; color: #999;">showing 0 of 0 results</span>
+          <button class="load-more-btn" id="load-more-btn" style="padding: 6px 16px; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 11px; cursor: pointer;">load more</button>
         </div>
       </div>
     </main>
 
-    <!-- Search Dock -->
     <div class="search-dock">
       <div class="search-wrap">
         <div class="search-bar">
           <span class="search-prompt">&gt;</span>
           <input class="search-input" id="search-input" placeholder="ask anything from your notes..." type="text" autocomplete="off" autofocus />
-          <span class="search-enter shortcut-hint">Ctrl+K</span>
+          <span class="search-enter shortcut-hint">↵ enter</span>
         </div>
         <div class="search-footer">
           <div class="mode-tabs">
             <div class="mode-tab active" id="modeAI" onclick="setMode('ai')">answer with AI</div>
             <div class="mode-tab" id="modeVerbatim" onclick="setMode('verbatim')">verbatim</div>
-            <div class="mode-tab" id="modeSource" onclick="setMode('source')">open source</div>
+            <div class="mode-tab" id="modeSource" onclick="setMode('source')" title="Explore all notes and tweets directly">browse notes</div>
           </div>
           <div class="footer-right">
             <div class="depth-row">
               <span>depth</span>
-              <input class="depth-slider" id="k-slider" type="range" min="5" max="100" value="15" step="1" />
+              <input class="depth-slider" id="k-slider" type="range" min="1" max="30" value="15" step="1" />
               <span class="depth-val" id="k-value">15</span>
             </div>
             <div class="kbd-hints">
@@ -132,32 +109,23 @@
       </div>
     </div>
 
-    <!-- Hidden Console Panel to prevent JS errors -->
-    <div class="error-console" id="error-console" style="display: none;">
-      <button class="console-toggle-btn" id="console-toggle-btn">Console</button>
-      <div class="console-content" id="console-content">
-        <button class="console-clear-btn" id="console-clear-btn">Clear</button>
-        <div class="console-logs-list" id="console-logs-list"></div>
-      </div>
-    </div>
-
     <!-- Modal Overlay -->
-    <div class="modal-overlay" id="modal" style="display:none;" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-header">
-          <span class="modal-title" id="modalTitle"></span>
-          <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-overlay" id="modal" style="display:none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;" onclick="if(event.target===this)closeModal()">
+      <div class="modal" style="background: #fff; border-radius: 8px; width: 600px; max-height: 80vh; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div class="modal-header" style="padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+          <span class="modal-title" id="modalTitle" style="font-family: var(--font-mono); font-size: 13px; font-weight: 600;"></span>
+          <button class="modal-close" onclick="closeModal()" style="background: none; border: none; cursor: pointer; font-size: 16px; color: #999;">✕</button>
         </div>
-        <div class="modal-breadcrumbs" id="modalBreadcrumbs" style="display: none;">
-          <button class="modal-nav-btn" id="modalPrev" title="Previous Passage">◀ Prev</button>
-          <span class="modal-breadcrumb-label" id="modalBreadcrumbLabel">passage 1 of 1</span>
-          <button class="modal-nav-btn" id="modalNext" title="Next Passage">Next ▶</button>
+        <div class="modal-breadcrumbs" id="modalBreadcrumbs" style="display: none; padding: 8px 16px; background: #fcfcf9; border-bottom: 1px solid var(--border); justify-content: space-between; align-items: center; font-family: var(--font-mono); font-size: 10px;">
+          <button class="modal-nav-btn" id="modalPrev" title="Previous Passage" style="background: none; border: none; cursor: pointer; color: #666;">◀ Prev</button>
+          <span class="modal-breadcrumb-label" id="modalBreadcrumbLabel" style="color: #999;">passage 1 of 1</span>
+          <button class="modal-nav-btn" id="modalNext" title="Next Passage" style="background: none; border: none; cursor: pointer; color: #666;">Next ▶</button>
         </div>
-        <div class="modal-body" id="modalBody"></div>
-        <div class="modal-footer">
-          <button class="modal-action primary" id="modalAskAI">Ask AI about this note</button>
-          <button class="modal-action" id="modalCopy">Copy text</button>
-          <button class="modal-action" id="modalOpenOriginal">Open original</button>
+        <div class="modal-body" id="modalBody" style="padding: 16px; overflow-y: auto; font-size: 13px; line-height: 1.6; color: #333;"></div>
+        <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end;">
+          <button class="modal-action primary" id="modalAskAI" style="padding: 6px 12px; background: #16a34a; color: #fff; border: none; border-radius: 4px; font-family: var(--font-mono); font-size: 11px; cursor: pointer;">Ask AI about this note</button>
+          <button class="modal-action" id="modalCopy" style="padding: 6px 12px; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 11px; cursor: pointer;">Copy text</button>
+          <button class="modal-action" id="modalOpenOriginal" style="padding: 6px 12px; background: #fff; border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); font-size: 11px; cursor: pointer;">Open original</button>
         </div>
       </div>
     </div>
@@ -167,10 +135,48 @@
       <button id="export-thread-btn" style="display: none;">Export</button>
     </div>
 
+    <!-- History Sidebar -->
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <h3>History</h3>
+        <button id="new-chat-btn">+ New Chat</button>
+      </div>
+      <div class="sidebar-content">
+        <div id="section-today" class="sidebar-section">
+          <h4>Today</h4>
+          <div id="list-today"></div>
+        </div>
+        <div id="section-yesterday" class="sidebar-section">
+          <h4>Yesterday</h4>
+          <div id="list-yesterday"></div>
+        </div>
+        <div id="section-earlier" class="sidebar-section">
+          <h4>Earlier</h4>
+          <div id="list-earlier"></div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Hidden elements required by app.js so it doesn't crash -->
+    <div style="display:none;">
+      
+      <div id="error-console"></div>
+      <button id="console-toggle-btn"></button>
+      <div id="console-content"></div>
+      <div id="console-error-count"></div>
+      <button id="console-clear-btn"></button>
+      <div id="console-logs-list"></div>
+    </div>
+
   </div>
 
   <script src="/ui/app.js"></script>
   <script>
+    function updateNav(el) {
+      document.querySelectorAll('.nav-tab').forEach(a => a.classList.remove('active'));
+      if(el) el.classList.add('active');
+    }
+    
     // Set dynamic current date on the hero banner
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];

@@ -13,14 +13,6 @@ headers = {"Content-Type": "application/json"}
 
 req = urllib.request.Request(url, data=json.dumps(data).encode("utf-8"), headers=headers)
 
-try:
-    print("Sending request to /query on port 8001...")
-    with urllib.request.urlopen(req) as response:
-        print(f"Status code: {response.status}")
-        print("Headers:")
-        print(response.headers)
-        print("Response body:")
-        while True:
             chunk = response.read(1024)
             if not chunk:
                 break
