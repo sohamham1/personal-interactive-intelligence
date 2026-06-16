@@ -34,6 +34,10 @@
         <span class="status-text">loading memories...</span>
       </div>
       <button class="topbar-btn" id="reingest-btn"><span class="sync-icon">⟳</span> <span class="sync-text">sync notes</span></button>
+      <div id="global-thinking-indicator" class="mem-pill" style="display: none; border-color: #bbf7d0; background: #f0fdf4;">
+        <span class="thinking-dot" style="margin-right: 6px;"></span>
+        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-match);">ai thinking...</span>
+      </div>
       <div class="model-chip">
         <div class="dot status-dot"></div>
         <span id="model-name">llama3.2:3b</span>
@@ -56,17 +60,17 @@
       </div>
 
       <!-- Live Search Card Grid (preview shown while typing) -->
-      <div class="live-search-container" id="live-search-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px;">
+      <div class="live-search-container" id="live-search-container" style="display: none; width: 100%; max-width: 920px; margin: 0 auto; padding-top: 28px; padding: 0 16px;">
         <div class="card-grid" id="results-list"></div>
       </div>
 
       <!-- Active Conversation View (AI & Verbatim mode turns) -->
-      <div class="conversation-container" id="conversation-container" style="display: none; width: 760px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
+      <div class="conversation-container" id="conversation-container" style="display: none; width: 100%; max-width: 920px; margin: 0 auto; padding-top: 28px; padding-bottom: 140px; padding-left: 16px; padding-right: 16px; overflow-y: auto;">
         <!-- Multi-turn conversational items injected here -->
       </div>
 
       <!-- Open Source Mode View (FTS cards & Pagination) -->
-      <div class="open-source-container" id="open-source-container" style="display: none; width: 920px; margin: 0 auto; padding-top: 20px; padding-bottom: 140px; overflow-y: auto;">
+      <div class="open-source-container" id="open-source-container" style="display: none; width: 100%; max-width: 1100px; margin: 0 auto; padding-top: 28px; padding-bottom: 140px; padding-left: 16px; padding-right: 16px; overflow-y: auto;">
         <div class="open-source-filters" style="display: flex; gap: 8px; justify-content: center; margin-bottom: 16px;">
           <button class="filter-btn active" data-group="all" style="font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;">all</button>
           <button class="filter-btn" data-group="notes" style="font-family: var(--font-mono); font-size: 11px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer;">notes</button>
@@ -138,7 +142,10 @@
     <!-- History Sidebar -->
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
-        <h3>History</h3>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button id="close-sidebar-btn" style="background: none; border: none; cursor: pointer; color: #aaa; font-size: 14px; padding: 2px 6px; border-radius: 4px; transition: background 0.15s, color 0.15s;">✕</button>
+          <h3 style="margin: 0;">History</h3>
+        </div>
         <button id="new-chat-btn">+ New Chat</button>
       </div>
       <div class="sidebar-content">

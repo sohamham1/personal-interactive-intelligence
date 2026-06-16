@@ -159,5 +159,15 @@ Run the startup script:
 
 ### 7. Stop the Server
 To safely stop the server and cleanly release the port:
-* **Windows**: Double-click `stop.bat` or run `.\stop.bat`.
+* **Windows**: Double-click `stop.bat` or run `.\stop.bat`. The script actively hunts down the specific `start.bat` terminal window and terminates it. The browser UI features a 2-second heartbeat and will automatically detect the server shutdown to help close out your session.
 * **macOS/Linux / Manual**: Terminate the `uvicorn` process (e.g., via `Ctrl+C` in your terminal).
+
+---
+
+## Key Features
+
+- **Graceful AI Concurrency**: Start a complex AI query and freely navigate to your notes or collections. The LLM runs in the background with a global "thinking" indicator.
+- **Snappy Context Switching**: Navigating to a new chat instantly fires an `AbortController` signal to drop the active generation, instantly freeing up your GPU and preventing queue bottlenecks.
+- **Fail-safe Partial Saves**: If a generation is aborted or the server stops, partial streams are still safely preserved to your SQLite history database. No lost data.
+- **Aggressive Cache Control**: The FastAPI backend serves your UI with strict zero-cache middleware so layout updates apply instantly on refresh.
+- **Robust Launch Scripts**: `start.bat` features an auto-version check, and `stop.bat` accurately kills both the python server and the terminal window hosting it.

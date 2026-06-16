@@ -1,6 +1,7 @@
 @echo off
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
+title PKB_Server_Window
 
 echo ===================================================
 echo   Starting Personal Knowledge Base
@@ -24,7 +25,13 @@ if "%FOUND%"=="1" (
 )
 
 echo.
-echo [2/2] Launching server...
+echo [2/3] Checking codebase version...
+for /f "tokens=*" %%i in ('git rev-parse --short HEAD 2^>nul') do set COMMIT=%%i
+if "!COMMIT!"=="" set COMMIT=Unknown
+echo Active version: !COMMIT!
+
+echo.
+echo [3/3] Launching server...
 echo.
 echo ---------------------------------------------------
 echo  APPLICATION IS RUNNING AT: http://localhost:8000/
@@ -39,7 +46,7 @@ start /B cmd /c "timeout /t 2 >nul & start http://localhost:8000/"
 venv\Scripts\python.exe -m uvicorn api.server:app --host 0.0.0.0 --port 8000
 if %errorlevel% neq 0 (
     echo.
-    echo [ERROR] Server failed to start.
-    echo Please make sure you have run the setup correctly and uvicorn is installed in venv.
-    pause
+    echo [INFO] Server stopped or encountered an error.
+    echo Auto-closing in 10 seconds...
+    timeout /t 10 >nul
 )

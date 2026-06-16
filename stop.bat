@@ -14,6 +14,9 @@ for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') 
     set FOUND=1
 )
 
+:: Forcefully close the start.bat command window if it's still open
+taskkill /FI "WINDOWTITLE eq PKB_Server_Window*" /T /F >nul 2>&1
+
 echo.
 if "%FOUND%"=="1" (
     echo Personal Knowledge Base server has been stopped cleanly.

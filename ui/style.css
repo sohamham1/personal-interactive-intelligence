@@ -267,6 +267,7 @@ body {
   flex-direction: column;
   gap: 6px;
   min-height: 100px;
+  min-width: 0;
 }
 
 .card:hover {
@@ -285,6 +286,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .card-top-right {
@@ -310,6 +312,7 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .card-body {
@@ -624,7 +627,9 @@ body {
 }
 
 .search-wrap {
-  width: 760px;
+  width: 100%;
+  max-width: 920px;
+  padding: 0 16px;
 }
 
 .search-bar {

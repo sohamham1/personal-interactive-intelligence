@@ -19,6 +19,9 @@ let openSourceGroup = 'all';
 // K depth state
 let currentK = 15;
 
+// Concurrency control
+let currentAbortController = null;
+
 // ── AI Thinking Loader ────────────────────────────────────────────────────────
 const THINKING_WORDS = [
   // Claude-style introspective gerunds
@@ -96,6 +99,7 @@ const loadMoreBtn = document.getElementById("load-more-btn");
 const sidebar = document.getElementById("sidebar");
 const sidebarToggle = document.getElementById("sidebar-toggle");
 const newChatBtn = document.getElementById("new-chat-btn");
+const globalThinkingIndicator = document.getElementById("global-thinking-indicator");
 
 const sectionToday = document.getElementById("section-today");
 const sectionYesterday = document.getElementById("section-yesterday");
@@ -167,6 +171,16 @@ document.addEventListener("DOMContentLoaded", () => {
     lastStatusOnline = isOnline;
   }, 30000);
 
+  // Server heartbeat loop to detect when stop.bat is run
+  setInterval(async () => {
+    try {
+      await fetch("/health", { method: "GET" });
+    } catch (err) {
+      document.body.innerHTML = "<div style='display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#fdfdfc; color:#1a1a1a; font-family:var(--font-mono);'><h2 style='color:#ef4444; margin-bottom:8px;'>Server Stopped</h2><p style='color:#666;'>You can safely close this browser tab.</p></div>";
+      try { window.open('','_self').close(); } catch (e) {}
+    }
+  }, 2000);
+
   // Error check loop
   setInterval(pollErrorConsole, 10000);
 
@@ -180,8 +194,20 @@ document.addEventListener("DOMContentLoaded", () => {
     sidebar.classList.toggle("open");
   });
 
+  // Sidebar Close Event
+  const closeSidebarBtn = document.getElementById("close-sidebar-btn");
+  if (closeSidebarBtn) {
+    closeSidebarBtn.addEventListener("click", () => {
+      sidebar.classList.remove("open");
+    });
+  }
+
   // New Chat Event
   newChatBtn.addEventListener("click", () => {
+    if (currentAbortController) {
+      currentAbortController.abort();
+      currentAbortController = null;
+    }
     activeConversationId = null;
     conversationActions.style.display = "none";
     clearSearchAndResults(true);
@@ -362,6 +388,12 @@ function setMode(mode) {
     }
   }
   searchInput.focus();
+  
+  if (isStreaming) {
+    globalThinkingIndicator.style.display = currentMode !== 'ai' ? 'flex' : 'none';
+  } else {
+    globalThinkingIndicator.style.display = 'none';
+  }
 }
 
 // Fetch home screen greeting details
@@ -487,6 +519,10 @@ async function loadSidebar() {
       });
 
       titleSpan.addEventListener("click", () => {
+        if (currentAbortController) {
+          currentAbortController.abort();
+          currentAbortController = null;
+        }
         selectConversation(c.id);
       });
       
@@ -1521,9 +1557,19 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
   
   turnEl.scrollIntoView({ block: "end", behavior: "smooth" });
 
+  if (currentAbortController) {
+    currentAbortController.abort();
+  }
+  currentAbortController = new AbortController();
+
+  if (currentMode !== 'ai') {
+    globalThinkingIndicator.style.display = 'flex';
+  }
+
   try {
     const response = await fetch("/query", {
       method: "POST",
+      signal: currentAbortController.signal,
       headers: {
         "Content-Type": "application/json"
       },
@@ -1749,6 +1795,12 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
     
   } catch (err) {
     stopThinkingLoader();
+    if (err.name === 'AbortError') {
+      // Gracefully handle aborted fetch
+      if (cursor) cursor.remove();
+      return;
+    }
+    
     console.error(err);
     pollErrorConsole();
     
@@ -1770,6 +1822,7 @@ async function askAI(forcedQuery = null, targetTurnId = null) {
     ansSources.remove();
   } finally {
     isStreaming = false;
+    globalThinkingIndicator.style.display = 'none';
     if (forcedQuery === null) {
       searchInput.value = "";
     }

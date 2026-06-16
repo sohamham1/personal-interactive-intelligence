@@ -74,6 +74,15 @@ async def global_exception_handler(request: Request, exc: Exception):
         content={"detail": str(exc)}
     )
 
+@app.middleware("http")
+async def add_no_cache_header(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith("/ui/") or request.url.path == "/":
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+    return response
+
 def get_relative_time(iso_str: str) -> str:
     """
     Converts ISO timestamp string to relative time (e.g., "2 months ago", "Apr 2024").
@@ -350,6 +359,9 @@ def search_endpoint(q: str = "", limit: int = 8):
             "url": url
         })
         
+    # Sort search results in reverse chronological order
+    formatted.sort(key=lambda x: x["created_at"] or x["date_range"] or "", reverse=True)
+        
     return formatted
 
 @app.get("/search/source")
@@ -394,7 +406,7 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
             FROM notes
             JOIN notes_fts ON notes.rowid = notes_fts.rowid
             WHERE notes_fts MATCH ? {source_clause}
-            ORDER BY bm25(notes_fts) ASC
+            ORDER BY notes.created_at DESC
             LIMIT ? OFFSET ?
         """
         cursor.execute(search_sql, params + [limit, offset])
@@ -836,26 +848,26 @@ async def query_endpoint(body: QueryRequest):
                 "snippet": make_snippet(best_chunk.get("text", ""), body.question)
             })
             
-        async def stream_verbatim():
-            yield html_out
-            yield f"\n\n__SOURCES__{json.dumps(sources_list)}"
-            
             try:
-                conn = get_connection()
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        answer=excluded.answer,
-                        sources=excluded.sources,
-                        mode=excluded.mode,
-                        created_at=excluded.created_at;
-                """, (turn_id, conversation_id, body.question, html_out, "verbatim", json.dumps(sources_list), datetime.now(timezone.utc).isoformat()))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print(f"Error saving verbatim turn to DB: {e}")
+                yield html_out
+                yield f"\n\n__SOURCES__{json.dumps(sources_list)}"
+            finally:
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            answer=excluded.answer,
+                            sources=excluded.sources,
+                            mode=excluded.mode,
+                            created_at=excluded.created_at;
+                    """, (turn_id, conversation_id, body.question, html_out, "verbatim", json.dumps(sources_list), datetime.now(timezone.utc).isoformat()))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    print(f"Error saving verbatim turn to DB: {e}")
 
         return StreamingResponse(
             stream_verbatim(),
@@ -924,43 +936,44 @@ async def query_endpoint(body: QueryRequest):
                 })
                 
             full_answer = ""
-            async with httpx.AsyncClient(timeout=300.0) as client:
-                async with client.stream("POST", f"{OLLAMA_BASE_URL}/api/generate", json={
-                    "model": "llama3.2:3b",
-                    "prompt": prompt,
-                    "stream": True
-                }) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if line:
-                            try:
-                                data = json.loads(line)
-                                if "response" in data:
-                                    token = data["response"]
-                                    full_answer += token
-                                    yield token
-                                if data.get("done"):
-                                    yield f"\n\n__SOURCES__{json.dumps(sources)}"
-                                    break
-                            except Exception as parse_err:
-                                print(f"Error parsing Ollama chunk: {parse_err}")
-                                
             try:
-                conn = get_connection()
-                cursor = conn.cursor()
-                cursor.execute("""
-                    INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(id) DO UPDATE SET
-                        answer=excluded.answer,
-                        sources=excluded.sources,
-                        mode=excluded.mode,
-                        created_at=excluded.created_at;
-                """, (turn_id, conversation_id, body.question, full_answer, "ai", json.dumps(sources), datetime.now(timezone.utc).isoformat()))
-                conn.commit()
-                conn.close()
-            except Exception as e:
-                print(f"Error saving turn to DB: {e}")
+                async with httpx.AsyncClient(timeout=300.0) as client:
+                    async with client.stream("POST", f"{OLLAMA_BASE_URL}/api/generate", json={
+                        "model": "llama3.2:3b",
+                        "prompt": prompt,
+                        "stream": True
+                    }) as response:
+                        response.raise_for_status()
+                        async for line in response.aiter_lines():
+                            if line:
+                                try:
+                                    data = json.loads(line)
+                                    if "response" in data:
+                                        token = data["response"]
+                                        full_answer += token
+                                        yield token
+                                    if data.get("done"):
+                                        yield f"\n\n__SOURCES__{json.dumps(sources)}"
+                                        break
+                                except Exception as parse_err:
+                                    print(f"Error parsing Ollama chunk: {parse_err}")
+            finally:
+                try:
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    cursor.execute("""
+                        INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT(id) DO UPDATE SET
+                            answer=excluded.answer,
+                            sources=excluded.sources,
+                            mode=excluded.mode,
+                            created_at=excluded.created_at;
+                    """, (turn_id, conversation_id, body.question, full_answer, "ai", json.dumps(sources), datetime.now(timezone.utc).isoformat()))
+                    conn.commit()
+                    conn.close()
+                except Exception as e:
+                    print(f"Error saving turn to DB: {e}")
                 
         return StreamingResponse(
             stream_ollama(),
