@@ -1,10 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 cd /d "%~dp0"
-title PKB_Server_Window
+title Recall_Server_Window
 
 echo ===================================================
-echo   Starting Personal Knowledge Base
+echo   Starting Recall
 echo ===================================================
 echo.
 

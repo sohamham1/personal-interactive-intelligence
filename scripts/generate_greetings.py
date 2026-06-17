@@ -17,7 +17,7 @@ USER_BIO = os.getenv("USER_BIO", "a tech enthusiast and thinker who likes to kee
 USER_TOPICS = os.getenv("USER_TOPICS", "writing, projects, learning, ambition, life, ideas")
 
 GREETING_PROMPT = """
-You are generating personalised home screen greetings and suggested prompt questions for {user_name}'s personal knowledge base app.
+You are generating personalised home screen greetings and suggested prompt questions for {user_name}'s Recall app.
 The user is {user_name} — {user_bio}.
 
 Here are some samples from their notes and tweets:

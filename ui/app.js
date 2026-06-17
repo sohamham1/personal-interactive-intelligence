@@ -111,7 +111,6 @@ const listEarlier = document.getElementById("list-earlier");
 // Top Bar Elements
 const statusDot = document.querySelector(".status-dot");
 const statusText = document.querySelector(".status-text");
-const reingestBtn = document.getElementById("reingest-btn");
 
 // Slider Elements
 const kSlider = document.getElementById("k-slider");
@@ -192,6 +191,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Sidebar Toggle Event
   sidebarToggle.addEventListener("click", () => {
     sidebar.classList.toggle("open");
+    document.body.classList.toggle("sidebar-open");
   });
 
   // Sidebar Close Event
@@ -256,12 +256,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Re-ingest Button Listener
-  if (reingestBtn) {
-    reingestBtn.addEventListener("click", () => {
-      triggerReingest();
-    });
-  }
+  // Global settings modal function
+  window.showSettingsModal = function() {
+    const modal = document.getElementById("settingsModal");
+    if (modal) {
+      modal.style.display = "flex";
+    }
+  };
 
   // Error Console Toggle
   if (consoleToggleBtn) {
@@ -925,7 +926,7 @@ function formatTweetCardTitle(item) {
   const m = rangeStr.match(/(\d{4}-\d{2}-\d{2})/);
   if (m) {
     const d = new Date(m[1] + "T00:00:00");
-    return `week of ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+    return `week of ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}`;
   }
   return titleRaw || "Tweets";
 }
@@ -969,13 +970,33 @@ function cleanTweetSnippet(snippet) {
 }
 
 // Parse a twitter weekly blob into structured tweet objects
-// Uses global regex to handle chunked blobs that may not start at tweet boundary
-function parseTweetBlob(text) {
+// Uses split to handle text that may start with or without a timestamp
+function parseTweetBlob(text, item) {
   const tweets = [];
-  const re = /- \[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})(?::\d{2})?\] ([^\n]+)/g;
-  let m;
-  while ((m = re.exec(text || "")) !== null) {
-    tweets.push({ date: m[1], time: m[2], content: m[3].trim() });
+  let fallbackDate = "Unknown Date";
+  if (item) {
+    const m = (item.date_range || item.title || "").match(/(\d{4}-\d{2}-\d{2})/);
+    if (m) fallbackDate = m[1];
+  }
+  
+  const parts = (text || "").split(/(?:^|\s+-\s+)\[(\d{4}-\d{2}-\d{2})\s(\d{2}:\d{2})(?::\d{2})?\]\s+/);
+  
+  let currentDate = fallbackDate;
+  let currentTime = "00:00";
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (/^\d{4}-\d{2}-\d{2}$/.test(part)) {
+      currentDate = part;
+      currentTime = parts[i+1] || "00:00";
+      i++; // Skip time part
+    } else if (part && part.trim().length > 0) {
+      tweets.push({
+        date: currentDate,
+        time: currentTime,
+        content: part.trim()
+      });
+    }
   }
   return tweets;
 }
@@ -983,7 +1004,7 @@ function parseTweetBlob(text) {
 // Render twitter item as a clean day-grouped timeline inside modal body
 function renderTwitterModal(item, bodyEl) {
   const text = item.text || item.snippet || "";
-  const tweets = parseTweetBlob(text);
+  const tweets = parseTweetBlob(text, item);
 
   if (tweets.length === 0) {
     bodyEl.style.whiteSpace = "pre-wrap";
@@ -995,6 +1016,48 @@ function renderTwitterModal(item, bodyEl) {
   bodyEl.style.whiteSpace = "";
   bodyEl.classList.add("tweet-timeline");
 
+  // Filter controls
+  const filterRow = document.createElement("div");
+  filterRow.className = "tweet-filter-row";
+  
+  const optAll = document.createElement("span");
+  optAll.className = "tweet-filter-opt active";
+  optAll.textContent = "All";
+  const optTweets = document.createElement("span");
+  optTweets.className = "tweet-filter-opt";
+  optTweets.textContent = "Tweets";
+  const optReplies = document.createElement("span");
+  optReplies.className = "tweet-filter-opt";
+  optReplies.textContent = "Replies";
+  
+  filterRow.appendChild(optAll);
+  filterRow.appendChild(optTweets);
+  filterRow.appendChild(optReplies);
+  bodyEl.appendChild(filterRow);
+  
+  function applyFilter(type) {
+    optAll.classList.toggle("active", type === "all");
+    optTweets.classList.toggle("active", type === "tweets");
+    optReplies.classList.toggle("active", type === "replies");
+    
+    const wrappers = bodyEl.querySelectorAll(".tweet-day-wrapper");
+    wrappers.forEach(wrapper => {
+      let visibleCount = 0;
+      const items = wrapper.querySelectorAll(".tweet-item");
+      items.forEach(item => {
+        const isReply = item.classList.contains("tweet-reply");
+        let show = type === "all" || (type === "tweets" && !isReply) || (type === "replies" && isReply);
+        item.style.display = show ? "flex" : "none";
+        if (show) visibleCount++;
+      });
+      wrapper.style.display = visibleCount > 0 ? "block" : "none";
+    });
+  }
+  
+  optAll.addEventListener("click", () => applyFilter("all"));
+  optTweets.addEventListener("click", () => applyFilter("tweets"));
+  optReplies.addEventListener("click", () => applyFilter("replies"));
+
   // Group by date
   const byDate = {};
   for (const t of tweets) {
@@ -1003,11 +1066,14 @@ function renderTwitterModal(item, bodyEl) {
   }
 
   for (const [date, dayTweets] of Object.entries(byDate)) {
+    const dayWrapper = document.createElement("div");
+    dayWrapper.className = "tweet-day-wrapper";
+
     const dayEl = document.createElement("div");
     dayEl.className = "tweet-day-header";
     const d = new Date(date + "T00:00:00");
     dayEl.textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-    bodyEl.appendChild(dayEl);
+    dayWrapper.appendChild(dayEl);
 
     for (const tweet of dayTweets) {
       const tweetEl = document.createElement("div");
@@ -1026,30 +1092,31 @@ function renderTwitterModal(item, bodyEl) {
         .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
       textEl.innerHTML = escaped
         .replace(/(@\w+)/g, '<span class="tweet-mention">$1</span>')
-        .replace(/(https?:\/\/\S+)/g, '<span class="tweet-url">link ↗</span>');
+        .replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank" class="tweet-url">link ↗</a>');
 
       tweetEl.appendChild(timeEl);
       tweetEl.appendChild(textEl);
-      bodyEl.appendChild(tweetEl);
+      dayWrapper.appendChild(tweetEl);
     }
+    bodyEl.appendChild(dayWrapper);
   }
 }
 
 // Render results into a target container (card grid)
-function renderResultsGrid(results, query, targetEl, append = false) {
+function renderResultsGrid(results, query, targetEl, append = false, isMainSearch = true) {
   if (!append) {
     targetEl.innerHTML = "";
-    currentResults = [];
+    if (isMainSearch) currentResults = [];
   }
   
-  const startIdx = currentResults.length;
-  currentResults = currentResults.concat(results);
+  const startIdx = isMainSearch ? currentResults.length : 0;
+  if (isMainSearch) currentResults = currentResults.concat(results);
   
-  results.forEach((item, index) => {
-    const actualIdx = startIdx + index;
+  (results || []).forEach((item, index) => {
+    const actualIdx = isMainSearch ? startIdx + index : -1;
     const cardEl = document.createElement("div");
     cardEl.className = "card";
-    cardEl.dataset.index = actualIdx;
+    if (actualIdx >= 0) cardEl.dataset.index = actualIdx;
     if (item.url) cardEl.dataset.url = item.url;
     
     const isTwitter = item.source === "twitter";
@@ -1121,7 +1188,7 @@ function renderResultsGrid(results, query, targetEl, append = false) {
     });
     
     cardEl.addEventListener("click", () => {
-      openModal(item);
+      openModal(item, isMainSearch ? actualIdx : -1);
     });
     
     targetEl.appendChild(cardEl);
@@ -1291,7 +1358,7 @@ function renderTurn(turn, isNew = false) {
   
   const queryEl = document.createElement("div");
   queryEl.className = "turn-query";
-  queryEl.textContent = `› ${turn.query}`;
+  queryEl.textContent = `› ${turn.query || ""}`;
   
   let blockEl;
   
@@ -1355,9 +1422,17 @@ function renderTurn(turn, isNew = false) {
     ansContent.className = "answer-content";
     
     if (turn.mode === 'verbatim') {
-      ansContent.innerHTML = turn.answer;
+      ansContent.innerHTML = turn.answer || "";
     } else {
-      ansContent.textContent = turn.answer;
+      try {
+        if (typeof marked !== 'undefined') {
+          ansContent.innerHTML = marked.parse(turn.answer || "");
+        } else {
+          ansContent.textContent = turn.answer || "";
+        }
+      } catch(e) {
+        ansContent.textContent = turn.answer || "";
+      }
     }
     
     const ansSources = document.createElement("div");
@@ -1446,7 +1521,7 @@ function renderTurn(turn, isNew = false) {
         });
         ansSources.style.display = "flex";
         
-        renderResultsGrid(sources, "", gridEl);
+        renderResultsGrid(sources, "", gridEl, false, false);
         
         blockEl.appendChild(toggleBtn);
         blockEl.appendChild(gridEl);

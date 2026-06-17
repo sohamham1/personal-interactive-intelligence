@@ -1,6 +1,6 @@
-# Personal Interactive Intelligence (Local RAG Knowledge Base)
+# Recall (Local RAG Knowledge Base)
 
-A high-performance, local-first RAG (Retrieval-Augmented Generation) system that turns your personal notes, tweets, bookmarks, and documents into an interactive, private knowledge assistant. 
+Interactive AI Assistant built on a local RAG ecosystem, transforming fragmented personal data into actionable, context-aware insights. 
 
 Featuring a terminal spotlight-inspired browser interface, the system supports hybrid semantic-lexical search, multi-turn AI chat, verbatim source viewing, and dynamic, context-aware personalized greetings.
 

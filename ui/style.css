@@ -161,6 +161,11 @@ body {
   overflow-y: auto;
   padding-bottom: 120px;
   z-index: 1;
+  transition: margin-left 0.3s ease;
+}
+
+body.sidebar-open .kb-body {
+  margin-left: 300px;
 }
 
 .dot-grid {
@@ -299,7 +304,7 @@ body {
 .card-date-badge {
   font-family: var(--font-mono);
   font-size: 9px;
-  color: #aaa;
+  color: #777;
   white-space: nowrap;
 }
 
@@ -669,7 +674,7 @@ body {
   caret-color: var(--accent-online);
 }
 
-.search-input::placeholder { color: #ccc; }
+.search-input::placeholder { color: #999; }
 
 .search-enter {
   font-family: var(--font-mono);
@@ -997,89 +1002,6 @@ body {
   50% { opacity: 1; }
 }
 
-/* \u2500\u2500 Tweet Timeline Modal \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500 */
-
-.tweet-timeline {
-  padding: 0 !important;
-  white-space: normal !important;
-}
-
-.tweet-day-header {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #bbb;
-  padding: 12px 20px 6px;
-  position: sticky;
-  top: 0;
-  background: #fcfcf9;
-  border-bottom: 1px solid #f0f0eb;
-  z-index: 1;
-}
-
-.tweet-item {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  padding: 10px 20px;
-  border-bottom: 1px solid #f5f5f0;
-  transition: background 0.1s;
-}
-
-.tweet-item:hover {
-  background: #f9f9f7;
-}
-
-.tweet-item:last-child {
-  border-bottom: none;
-}
-
-.tweet-reply {
-  border-left: 2px solid #bfdbfe;
-  padding-left: 18px;
-  background: #fafcff;
-}
-
-.tweet-reply:hover {
-  background: #f0f7ff;
-}
-
-.tweet-time {
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: #ccc;
-  white-space: nowrap;
-  min-width: 36px;
-  padding-top: 2px;
-  flex-shrink: 0;
-}
-
-.tweet-text {
-  font-size: 12px;
-  color: #1a1a1a;
-  line-height: 1.6;
-  flex: 1;
-  word-break: break-word;
-}
-
-.tweet-mention {
-  color: #2563eb;
-  font-weight: 500;
-}
-
-.tweet-url {
-  color: #6b7280;
-  font-family: var(--font-mono);
-  font-size: 10px;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 3px;
-  padding: 0 4px;
-  cursor: default;
-}
-
 /* src-tag — twitter 𝕏 variant */
 .src-tag.src-twitter {
   background: #eff6ff;
@@ -1143,6 +1065,47 @@ body {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  padding: 0 !important;
+}
+
+.tweet-filter-row {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-primary);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.tweet-filter-opt {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-bottom: 2px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.tweet-filter-opt:hover {
+  color: var(--text-primary);
+}
+
+.tweet-filter-opt.active {
+  color: var(--text-primary);
+  border-bottom-color: var(--text-primary);
+}
+
+.tweet-day-wrapper {
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+}
+.tweet-day-wrapper:first-of-type {
+  margin-top: 0;
 }
 .tweet-day-header {
   font-family: var(--font-mono);
@@ -1151,10 +1114,6 @@ body {
   text-transform: uppercase;
   border-bottom: 1px solid var(--border);
   padding-bottom: 4px;
-  margin-top: 10px;
-}
-.tweet-day-header:first-child {
-  margin-top: 0;
 }
 .tweet-item {
   display: flex;
@@ -1202,20 +1161,20 @@ body {
 .sidebar {
   position: absolute;
   top: 48px;
-  right: -320px;
+  left: -320px;
   width: 300px;
   bottom: 0;
   background: #ffffff;
-  border-left: 1px solid var(--border);
-  box-shadow: -2px 0 10px rgba(0,0,0,0.05);
-  transition: right 0.3s ease;
+  border-right: 1px solid var(--border);
+  box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+  transition: left 0.3s ease;
   z-index: 50;
   display: flex;
   flex-direction: column;
 }
 
 .sidebar.open {
-  right: 0;
+  left: 0;
 }
 
 .sidebar-header {

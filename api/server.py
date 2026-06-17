@@ -16,7 +16,7 @@ from core.embedder import OLLAMA_BASE_URL, EMBEDDING_MODEL
 from core.ollama import check_ollama, check_model
 from core.database import get_connection, init_db
 
-app = FastAPI(title="Personal Knowledge Base API")
+app = FastAPI(title="Recall API")
 
 # Ensure UI directory exists
 os.makedirs("ui", exist_ok=True)
@@ -848,6 +848,7 @@ async def query_endpoint(body: QueryRequest):
                 "snippet": make_snippet(best_chunk.get("text", ""), body.question)
             })
             
+        async def stream_verbatim():
             try:
                 yield html_out
                 yield f"\n\n__SOURCES__{json.dumps(sources_list)}"

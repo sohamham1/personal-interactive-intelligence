@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Personal Knowledge Base Q&A</title>
+  <title>Recall</title>
   <link rel="icon" type="image/png" href="/ui/favicon.png">
   <!-- Google Fonts JetBrains Mono & Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,7 +19,7 @@
     <header class="kb-topbar">
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="/ui/favicon.png" alt="Logo" style="width: 20px; height: 20px; object-fit: contain; border-radius: 4px;">
-        <span class="logo">PKB<span class="logo-dot">.</span></span>
+        <span class="logo">Recall<span class="logo-dot">.</span></span>
       </div>
       <div class="topbar-divider"></div>
       <nav class="topbar-nav">
@@ -33,7 +33,6 @@
         <div class="mem-dot status-dot"></div>
         <span class="status-text">loading memories...</span>
       </div>
-      <button class="topbar-btn" id="reingest-btn"><span class="sync-icon">⟳</span> <span class="sync-text">sync notes</span></button>
       <div id="global-thinking-indicator" class="mem-pill" style="display: none; border-color: #bbf7d0; background: #f0fdf4;">
         <span class="thinking-dot" style="margin-right: 6px;"></span>
         <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-match);">ai thinking...</span>
@@ -43,7 +42,7 @@
         <span id="model-name">llama3.2:3b</span>
         <i class="ti ti-chevron-down" style="font-size:11px; margin-left:4px" aria-hidden="true"></i>
       </div>
-      <button class="topbar-btn" onclick="alert('Personalization settings can be customized using environment variables (USER_NAME, USER_BIO, USER_TOPICS) on the backend.')">⚙</button>
+      <button class="topbar-btn" onclick="showSettingsModal()">⚙</button>
     </header>
 
     <main class="kb-body results-area" id="results-area">
@@ -172,11 +171,22 @@
       <div id="console-content"></div>
       <div id="console-error-count"></div>
       <button id="console-clear-btn"></button>
-      <div id="console-logs-list"></div>
+      <!-- Custom Settings Modal -->
+  <div class="modal-overlay" id="settingsModal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1000; align-items: center; justify-content: center;" onclick="if(event.target===this) this.style.display='none'">
+    <div class="modal-content" style="background: #fff; border-radius: 8px; width: 600px; max-width: 400px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+      <h3 style="margin-top: 0; font-family: var(--font-mono); color: #1a1a1a;">⚙ Personalization Options</h3>
+      <p style="color: #666; font-size: 14px; margin: 16px 0; line-height: 1.5;">
+        Your AI is uniquely tailored to you! Currently, your name, bio, and favorite topics are securely set on the server backend.<br><br>
+        Soon, you'll be able to configure and update these settings directly from this menu.
+      </p>
+      <button class="modal-btn" onclick="document.getElementById('settingsModal').style.display='none'" style="margin-top: 12px; width: 100%; padding: 8px; cursor: pointer;">Got it</button>
+    </div>
+  </div>
     </div>
 
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script src="/ui/app.js"></script>
   <script>
     function updateNav(el) {
