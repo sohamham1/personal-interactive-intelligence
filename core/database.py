@@ -85,36 +85,38 @@ def init_db():
 
 def save_chunks_to_db(chunks: list[dict]):
     conn = get_connection()
-    cursor = conn.cursor()
-    for chunk in chunks:
-        meta = chunk["metadata"]
-        chunk_id = f"{chunk['source_id']}_chunk_{chunk['chunk_index']}"
-        source_id = chunk["source_id"]
-        source = meta.get("source", "")
-        title = meta.get("title", "")
-        body = chunk["text"]
-        
-        created_at = meta.get("created_at") or meta.get("saved_at") or ""
-        if source == "twitter" and not created_at:
-            date_range = meta.get("date_range", "")
-            if date_range:
-                created_at = date_range.split(" to ")[0]
-        url = meta.get("url") or ""
-        
-        try:
-            cursor.execute("""
-            INSERT INTO notes (chunk_id, source_id, source, title, body, created_at, url)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(chunk_id) DO UPDATE SET
-                source_id=excluded.source_id,
-                source=excluded.source,
-                title=excluded.title,
-                body=excluded.body,
-                created_at=excluded.created_at,
-                url=excluded.url;
-            """, (chunk_id, source_id, source, title, body, created_at, url))
-        except Exception as e:
-            print(f"Error saving chunk {chunk_id} to SQLite: {e}")
+    try:
+        cursor = conn.cursor()
+        for chunk in chunks:
+            meta = chunk["metadata"]
+            chunk_id = f"{chunk['source_id']}_chunk_{chunk['chunk_index']}"
+            source_id = chunk["source_id"]
+            source = meta.get("source", "")
+            title = meta.get("title", "")
+            body = chunk["text"]
             
-    conn.commit()
-    conn.close()
+            created_at = meta.get("created_at") or meta.get("saved_at") or ""
+            if source == "twitter" and not created_at:
+                date_range = meta.get("date_range", "")
+                if date_range:
+                    created_at = date_range.split(" to ")[0]
+            url = meta.get("url") or ""
+            
+            try:
+                cursor.execute("""
+                INSERT INTO notes (chunk_id, source_id, source, title, body, created_at, url)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(chunk_id) DO UPDATE SET
+                    source_id=excluded.source_id,
+                    source=excluded.source,
+                    title=excluded.title,
+                    body=excluded.body,
+                    created_at=excluded.created_at,
+                    url=excluded.url;
+                """, (chunk_id, source_id, source, title, body, created_at, url))
+            except Exception as e:
+                print(f"Error saving chunk {chunk_id} to SQLite: {e}")
+                
+        conn.commit()
+    finally:
+        conn.close()

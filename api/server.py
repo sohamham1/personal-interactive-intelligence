@@ -211,6 +211,10 @@ def make_snippet(text: str, query: str) -> str:
 def read_root():
     return FileResponse("ui/index.html")
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 @app.get("/status")
 async def get_status():
     ollama_status = await check_ollama()
@@ -388,8 +392,8 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
     total = 0
     formatted = []
     
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         
         count_sql = f"""
@@ -411,7 +415,6 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
         """
         cursor.execute(search_sql, params + [limit, offset])
         rows = cursor.fetchall()
-        conn.close()
         
         for row in rows:
             source = row["source"]
@@ -459,6 +462,8 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
             
     except Exception as e:
         print(f"Error in /search/source: {e}")
+    finally:
+        conn.close()
         
     has_more = offset + len(formatted) < total
     return {
@@ -470,26 +475,26 @@ def search_source_endpoint(q: str = "", limit: int = 20, offset: int = 0, source
 
 @app.get("/conversations")
 def list_conversations():
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, title, updated_at FROM conversations ORDER BY updated_at DESC LIMIT 50")
         rows = cursor.fetchall()
-        conn.close()
         return [{"id": r["id"], "title": r["title"] or "New Conversation", "updated_at": r["updated_at"]} for r in rows]
     except Exception as e:
         print(f"Error listing conversations: {e}")
         return []
+    finally:
+        conn.close()
 
 @app.get("/conversations/{id}")
 def get_conversation(id: str):
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT id, title, created_at, updated_at FROM conversations WHERE id = ?", (id,))
         conv = cursor.fetchone()
         if not conv:
-            conn.close()
             raise HTTPException(status_code=404, detail="Conversation not found")
             
         cursor.execute("""
@@ -497,7 +502,6 @@ def get_conversation(id: str):
             WHERE conversation_id = ? ORDER BY created_at ASC
         """, (id,))
         turns = cursor.fetchall()
-        conn.close()
         
         formatted_turns = []
         for t in turns:
@@ -529,74 +533,79 @@ def get_conversation(id: str):
     except Exception as e:
         print(f"Error fetching conversation {id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.post("/conversations")
 def create_conversation(body: dict = None):
+    conn = get_connection()
     try:
         cid = str(uuid.uuid4())
         now_str = datetime.now(timezone.utc).isoformat()
         title = body.get("title") if body else None
         
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO conversations (id, title, created_at, updated_at)
             VALUES (?, ?, ?, ?)
         """, (cid, title, now_str, now_str))
         conn.commit()
-        conn.close()
         return {"id": cid}
     except Exception as e:
         print(f"Error creating conversation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.put("/conversations/{id}")
 def rename_conversation(id: str, body: RenameRequest):
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?", (body.title, datetime.now(timezone.utc).isoformat(), id))
         conn.commit()
-        conn.close()
         return {"status": "success"}
     except Exception as e:
         print(f"Error renaming conversation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.delete("/conversations/{id}")
 def delete_conversation(id: str):
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("DELETE FROM conversations WHERE id = ?", (id,))
         conn.commit()
-        conn.close()
         return {"status": "success"}
     except Exception as e:
         print(f"Error deleting conversation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.post("/turns/{id}/feedback")
 def save_turn_feedback(id: str, body: FeedbackRequest):
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("UPDATE turns SET feedback = ? WHERE id = ?", (body.feedback, id))
         conn.commit()
-        conn.close()
         return {"status": "success"}
     except Exception as e:
         print(f"Error saving feedback: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 @app.get("/notes/{source_id}/chunks")
 def get_note_chunks(source_id: str):
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("SELECT chunk_id, title, body, source, created_at, url FROM notes WHERE source_id = ?", (source_id,))
         rows = cursor.fetchall()
-        conn.close()
         
         chunks = []
         for r in rows:
@@ -622,6 +631,8 @@ def get_note_chunks(source_id: str):
     except Exception as e:
         print(f"Error fetching chunks for source_id {source_id}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
 
 def run_ingestion():
     global INGEST_STATUS
@@ -708,14 +719,7 @@ Answer in 3-5 sentences. Draw from the sources above. Do not fabricate."""
     
     return prompt
 
-@app.on_event("startup")
-async def startup_event():
-    try:
-        init_db()
-        print("Database initialized successfully.")
-    except Exception as db_err:
-        print(f"Error initializing database: {db_err}")
-        
+async def warmup_ollama():
     try:
         async with httpx.AsyncClient() as client:
             await client.post(f"{OLLAMA_BASE_URL}/api/generate", json={
@@ -724,8 +728,19 @@ async def startup_event():
                 "stream": False,
                 "options": {"num_predict": 1}
             }, timeout=10)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Ollama warmup failed/timed out: {e}")
+
+@app.on_event("startup")
+async def startup_event():
+    try:
+        init_db()
+        print("Database initialized successfully.")
+    except Exception as db_err:
+        print(f"Error initializing database: {db_err}")
+        
+    import asyncio
+    asyncio.create_task(warmup_ollama())
 
 @app.post("/query")
 async def query_endpoint(body: QueryRequest):
@@ -742,8 +757,8 @@ async def query_endpoint(body: QueryRequest):
     now_str = datetime.now(timezone.utc).isoformat()
     title = body.question[:50]
     
+    conn = get_connection()
     try:
-        conn = get_connection()
         cursor = conn.cursor()
         
         cursor.execute("SELECT id FROM conversations ORDER BY updated_at DESC")
@@ -771,9 +786,10 @@ async def query_endpoint(body: QueryRequest):
                     UPDATE conversations SET updated_at = ? WHERE id = ?
                 """, (now_str, conversation_id))
         conn.commit()
-        conn.close()
     except Exception as db_err:
         print(f"Error managing conversations: {db_err}")
+    finally:
+        conn.close()
 
     # Use client provided k count if specified
     k_val = body.k
@@ -853,8 +869,8 @@ async def query_endpoint(body: QueryRequest):
                 yield html_out
                 yield f"\n\n__SOURCES__{json.dumps(sources_list)}"
             finally:
+                conn = get_connection()
                 try:
-                    conn = get_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
                         INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
@@ -866,9 +882,10 @@ async def query_endpoint(body: QueryRequest):
                             created_at=excluded.created_at;
                     """, (turn_id, conversation_id, body.question, html_out, "verbatim", json.dumps(sources_list), datetime.now(timezone.utc).isoformat()))
                     conn.commit()
-                    conn.close()
                 except Exception as e:
                     print(f"Error saving verbatim turn to DB: {e}")
+                finally:
+                    conn.close()
 
         return StreamingResponse(
             stream_verbatim(),
@@ -878,8 +895,8 @@ async def query_endpoint(body: QueryRequest):
         
     else:
         context = ""
+        conn = get_connection()
         try:
-            conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT query, answer FROM turns
@@ -887,7 +904,6 @@ async def query_endpoint(body: QueryRequest):
                 ORDER BY created_at DESC LIMIT 3
             """, (conversation_id,))
             turns_rows = cursor.fetchall()
-            conn.close()
             
             last_3_turns = list(reversed(turns_rows))
             context = "\n\n".join([
@@ -896,6 +912,8 @@ async def query_endpoint(body: QueryRequest):
             ])
         except Exception as ctx_err:
             print(f"Error fetching conversation context: {ctx_err}")
+        finally:
+            conn.close()
 
         chunks = retrieve(body.question, n_results=k_val)
         total_matches = getattr(chunks, "total_matches", len(chunks))
@@ -959,8 +977,8 @@ async def query_endpoint(body: QueryRequest):
                                 except Exception as parse_err:
                                     print(f"Error parsing Ollama chunk: {parse_err}")
             finally:
+                conn = get_connection()
                 try:
-                    conn = get_connection()
                     cursor = conn.cursor()
                     cursor.execute("""
                         INSERT INTO turns (id, conversation_id, query, answer, mode, sources, created_at)
@@ -972,9 +990,10 @@ async def query_endpoint(body: QueryRequest):
                             created_at=excluded.created_at;
                     """, (turn_id, conversation_id, body.question, full_answer, "ai", json.dumps(sources), datetime.now(timezone.utc).isoformat()))
                     conn.commit()
-                    conn.close()
                 except Exception as e:
                     print(f"Error saving turn to DB: {e}")
+                finally:
+                    conn.close()
                 
         return StreamingResponse(
             stream_ollama(),

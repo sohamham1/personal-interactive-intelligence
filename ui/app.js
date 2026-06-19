@@ -171,12 +171,25 @@ document.addEventListener("DOMContentLoaded", () => {
   }, 30000);
 
   // Server heartbeat loop to detect when stop.bat is run
+  let consecutiveFailures = 0;
+  let serverHasConnected = false;
   setInterval(async () => {
     try {
       await fetch("/health", { method: "GET" });
+      consecutiveFailures = 0;
+      serverHasConnected = true;
     } catch (err) {
-      document.body.innerHTML = "<div style='display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#fdfdfc; color:#1a1a1a; font-family:var(--font-mono);'><h2 style='color:#ef4444; margin-bottom:8px;'>Server Stopped</h2><p style='color:#666;'>You can safely close this browser tab.</p></div>";
-      try { window.open('','_self').close(); } catch (e) {}
+      if (err.name === 'AbortError') {
+        return; // Ignore client-side aborts (like Escape key)
+      }
+      consecutiveFailures++;
+      // If server has connected at least once, require 3 consecutive failures (6 seconds).
+      // If server hasn't connected yet (startup sequence), allow up to 15 failures (30 seconds) for database/fastapi boot.
+      const maxFailures = serverHasConnected ? 3 : 15;
+      if (consecutiveFailures >= maxFailures) {
+        document.body.innerHTML = "<div style='display:flex; height:100vh; align-items:center; justify-content:center; flex-direction:column; background:#fdfdfc; color:#1a1a1a; font-family:var(--font-mono);'><h2 style='color:#ef4444; margin-bottom:8px;'>Server Stopped</h2><p style='color:#666;'>You can safely close this browser tab.</p></div>";
+        try { window.open('','_self').close(); } catch (e) {}
+      }
     }
   }, 2000);
 
@@ -847,7 +860,7 @@ function clearSearchAndResults(clearInput = true) {
     liveSearchContainer.style.display = "none";
     openSourceContainer.style.display = "none";
     conversationContainer.style.display = "flex";
-    selectConversation(activeConversationId);
+    conversationActions.style.display = "block";
   } else {
     emptyState.style.display = "flex";
     liveSearchContainer.style.display = "none";
@@ -1344,7 +1357,11 @@ document.addEventListener("keydown", (e) => {
     }
   } else if (e.key === "Escape") {
     e.preventDefault();
-    clearSearchAndResults(true);
+    if (searchInput.value.trim() !== "") {
+      clearSearchAndResults(true);
+    } else {
+      newChatBtn.click();
+    }
   }
 });
 

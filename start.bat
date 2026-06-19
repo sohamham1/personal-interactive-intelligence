@@ -39,8 +39,9 @@ echo  To stop the server, close this window or run stop.bat
 echo ---------------------------------------------------
 echo.
 
-:: Launch the browser after a short delay in the background
-start /B cmd /c "timeout /t 2 >nul & start http://localhost:8000/"
+:: Launch the browser in the background once the server starts listening on port 8000
+start /B cmd /c "for /L %%i in (1,1,30) do (netstat -aon | findstr :8000 | findstr LISTENING >nul && (start http://localhost:8000/ & exit) || ping 127.0.0.1 -n 2 >nul)"
+
 
 :: Start the server in the foreground on all network interfaces (for phone access)
 venv\Scripts\python.exe -m uvicorn api.server:app --host 0.0.0.0 --port 8000

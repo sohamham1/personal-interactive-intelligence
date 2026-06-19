@@ -13,8 +13,8 @@ from core.vectorstore import VectorStore
 from core.embedder import OLLAMA_BASE_URL
 
 USER_NAME = os.getenv("USER_NAME", "User")
-USER_BIO = os.getenv("USER_BIO", "a tech enthusiast and thinker who likes to keep notes and document ideas")
-USER_TOPICS = os.getenv("USER_TOPICS", "writing, projects, learning, ambition, life, ideas")
+USER_BIO = os.getenv("USER_BIO", "a note-taker who documents thoughts and ideas")
+USER_TOPICS = os.getenv("USER_TOPICS", "projects, learning, life, ideas, goals")
 
 GREETING_PROMPT = """
 You are generating personalised home screen greetings and suggested prompt questions for {user_name}'s Recall app.
@@ -23,7 +23,7 @@ The user is {user_name} — {user_bio}.
 Here are some samples from their notes and tweets:
 {sample_chunks}
 
-Generate exactly 30 greetings and exactly 10 suggested prompts.
+Generate exactly 12 greetings and exactly 6 suggested prompts.
 Return ONLY a valid JSON object matching this structure (no markdown fences, no preamble):
 {{
   "greetings": [
@@ -33,13 +33,13 @@ Return ONLY a valid JSON object matching this structure (no markdown fences, no 
        "subline": "another day, another opportunity to build something cool.",
        "mood": "funny"
      }},
-     ... (exactly 30 items) ...
+     ... (exactly 12 items) ...
   ],
   "suggested_prompts": [
      "what have I written about ambition?",
      "find my notes on a specific project",
      "what are my main goals?",
-     ... (exactly 10 items) ...
+     ... (exactly 6 items) ...
   ]
 }}
 
@@ -57,6 +57,7 @@ Rules for suggested prompts:
 - Must be interesting questions that {user_name} would ask their knowledge base
 - Should cover topics like: {user_topics}
 - Kept short and engaging (under 8 words)
+- Must be a balanced mix of serious/analytical questions and casual/normal queries (do not make them all fun or quirky)
 """
 
 def generate():
@@ -86,7 +87,7 @@ def generate():
     
     print("Calling Ollama to generate greetings (this can take up to 30 seconds)...")
     try:
-        with httpx.Client(timeout=90.0) as client:
+        with httpx.Client(timeout=300.0) as client:
             response = client.post(
                 f"{OLLAMA_BASE_URL}/api/generate",
                 json={
@@ -130,18 +131,16 @@ def generate():
         # Write default file if we failed
         fallback_data = {
             "greetings": [
-                {"time": "morning", "greeting": f"Good morning, {USER_NAME}.", "subline": "Let's check the notes.", "mood": "warm"},
-                {"time": "afternoon", "greeting": f"Good afternoon, {USER_NAME}.", "subline": "Hope the day is going well.", "mood": "warm"},
-                {"time": "evening", "greeting": f"Good evening, {USER_NAME}.", "subline": "Time to reflect.", "mood": "reflective"},
-                {"time": "night", "greeting": f"Good night, {USER_NAME}.", "subline": "Still coding or reading?", "mood": "funny"}
+                {"time": "morning", "greeting": f"Good morning, {USER_NAME}.", "subline": "", "mood": "warm"},
+                {"time": "afternoon", "greeting": f"Good afternoon, {USER_NAME}.", "subline": "", "mood": "warm"},
+                {"time": "evening", "greeting": f"Good evening, {USER_NAME}.", "subline": "", "mood": "reflective"},
+                {"time": "night", "greeting": f"Up late, {USER_NAME}?", "subline": "", "mood": "reflective"}
             ],
             "suggested_prompts": [
-                "what are my key projects?",
-                "what notes do I have on startup ideas?",
+                "what projects have I been working on?",
+                "find my notes on ideas",
                 "summarize my recent thoughts",
-                "what have I written about ambition?",
-                "what do I think about love?",
-                "my goals for this month"
+                "what are my main goals?"
             ]
         }
         output_file = "data/greetings.json"

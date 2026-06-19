@@ -9,7 +9,7 @@ echo.
 
 set FOUND=0
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :8000 ^| findstr LISTENING') do (
-    echo Stopping running server instance (PID: %%a)...
+    echo Stopping running server instance PID %%a...
     taskkill /F /PID %%a >nul 2>&1
     set FOUND=1
 )
@@ -26,4 +26,4 @@ if "%FOUND%"=="1" (
 echo.
 
 echo Closing in 3 seconds...
-timeout /t 3 >nul
+ping 127.0.0.1 -n 4 >nul

@@ -96,8 +96,8 @@ def retrieve(query_text: str, n_results: int = None, deduplicate: bool = None) -
     keyword_chunks = []
     sanitized_q = sanitize_fts_query(query_text)
     if sanitized_q:
+        conn = get_connection()
         try:
-            conn = get_connection()
             cursor = conn.cursor()
             cursor.execute("""
                 SELECT notes.chunk_id, notes.source_id, notes.source, notes.title, notes.body, notes.created_at, notes.url
@@ -131,9 +131,10 @@ def retrieve(query_text: str, n_results: int = None, deduplicate: bool = None) -
                     "text": row["body"],
                     "metadata": metadata
                 })
-            conn.close()
         except Exception as e:
             print(f"Error querying FTS5: {e}")
+        finally:
+            conn.close()
 
     # 4. Merge using Reciprocal Rank Fusion (RRF, k=60)
     # First, collect all unique chunk_ids and build a mapping of chunk_id -> dict
